@@ -7,22 +7,26 @@ type Coating = 'None' | 'MAR' | 'Blue Filter';
 type LightProtection = 'None' | 'Transitions' | 'XtrActive Transitions' | 'Solid Tint';
 
 // --- Pricing Logic ---
-const getLensBasePrice = (type: LensType, index: LensIndex): number => {
+const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean): number => {
   if (type === 'Single Vision') {
-    const prices = { '1.5': 0, '1.6': 35, '1.67': 100, '1.74': 149 };
-    return prices[index];
+    const newPrices = { '1.5': 0, '1.6': 35, '1.67': 100, '1.74': 149 };
+    const ownPrices = { '1.5': 59, '1.6': 94, '1.67': 159, '1.74': 208 };
+    return isOwnFrame ? ownPrices[index] : newPrices[index];
   }
   if (type === 'Basic Varifocal') {
-    const prices = { '1.5': 119, '1.6': 184, '1.67': 214, '1.74': 264 };
-    return prices[index];
+    const newPrices = { '1.5': 119, '1.6': 184, '1.67': 214, '1.74': 264 };
+    const ownPrices = { '1.5': 139, '1.6': 204, '1.67': 234, '1.74': 284 };
+    return isOwnFrame ? ownPrices[index] : newPrices[index];
   }
   if (type === 'Elite Varifocal') {
-    const prices = { '1.5': 139, '1.6': 234, '1.67': 264, '1.74': 314 };
-    return prices[index];
+    const newPrices = { '1.5': 139, '1.6': 234, '1.67': 264, '1.74': 314 };
+    const ownPrices = { '1.5': 159, '1.6': 254, '1.67': 284, '1.74': 334 };
+    return isOwnFrame ? ownPrices[index] : newPrices[index];
   }
   if (type === 'Individual Varifocal') {
-    const prices = { '1.5': 199, '1.6': 294, '1.67': 314, '1.74': 374 };
-    return prices[index];
+    const newPrices = { '1.5': 199, '1.6': 294, '1.67': 314, '1.74': 374 };
+    const ownPrices = { '1.5': 219, '1.6': 314, '1.67': 334, '1.74': 394 };
+    return isOwnFrame ? ownPrices[index] : newPrices[index];
   }
   return 0;
 };
@@ -45,6 +49,7 @@ const getLightProtectionPrice = (protection: LightProtection, type: LensType): n
 export default function App() {
   // --- State ---
   const [customerName, setCustomerName] = useState<string>('');
+  const [isOwnFrame, setIsOwnFrame] = useState<boolean>(false);
   const [framePrice, setFramePrice] = useState<number>(0);
   const [lensType, setLensType] = useState<LensType>('Single Vision');
   const [lensIndex, setLensIndex] = useState<LensIndex>('1.5');
@@ -52,11 +57,13 @@ export default function App() {
   const [lightProtection, setLightProtection] = useState<LightProtection>('None');
 
   // --- Calculations ---
-  const lensBaseCost = useMemo(() => getLensBasePrice(lensType, lensIndex), [lensType, lensIndex]);
+  const lensBaseCost = useMemo(() => getLensBasePrice(lensType, lensIndex, isOwnFrame), [lensType, lensIndex, isOwnFrame]);
   const coatingCost = useMemo(() => getCoatingPrice(coating), [coating]);
   const protectionCost = useMemo(() => getLightProtectionPrice(lightProtection, lensType), [lightProtection, lensType]);
   
-  const totalCost = (framePrice || 0) + lensBaseCost + coatingCost + protectionCost;
+  // If it's their own frame, we ignore the frame price entirely.
+  const activeFramePrice = isOwnFrame ? 0 : (framePrice || 0);
+  const totalCost = activeFramePrice + lensBaseCost + coatingCost + protectionCost;
 
   return (
     <div className="min-h-screen bg-gray-100 py-10 px-4 sm:px-6 lg:px-8 font-sans">
@@ -69,9 +76,9 @@ export default function App() {
 
         {/* Form Content */}
         <div className="p-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Customer Name */}
+          
+          {/* Top Row: Name and Frame Toggle */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-gray-200">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Customer Name</label>
               <input 
@@ -83,15 +90,41 @@ export default function App() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Frame Source</label>
+              <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-300">
+                <button
+                  type="button"
+                  onClick={() => setIsOwnFrame(false)}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${!isOwnFrame ? 'bg-white shadow text-slate-800' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  New Frame
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOwnFrame(true)}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${isOwnFrame ? 'bg-white shadow text-slate-800' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Own Frame (Reglaze)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
             {/* Frame Price */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Frame Price (£)</label>
+              <label className={`block text-sm font-semibold mb-2 ${isOwnFrame ? 'text-gray-400' : 'text-gray-700'}`}>
+                Frame Price (£)
+              </label>
               <input 
                 type="number" 
                 value={framePrice || ''} 
                 onChange={(e) => setFramePrice(parseFloat(e.target.value))} 
                 placeholder="0.00" 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 bg-gray-50 transition-colors"
+                disabled={isOwnFrame}
+                className={`w-full p-3 border rounded-lg transition-colors ${isOwnFrame ? 'bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 focus:ring-2 focus:ring-slate-500 focus:border-slate-500 bg-gray-50'}`}
               />
             </div>
 
@@ -158,15 +191,20 @@ export default function App() {
 
         {/* Summary Section */}
         <div className="bg-slate-50 border-t border-gray-200 p-8">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-            Quote Summary {customerName && <span className="text-slate-600 font-medium">for {customerName}</span>}
+          <h2 className="text-lg font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2 flex justify-between items-end">
+            <span>Quote Summary {customerName && <span className="text-slate-600 font-medium">for {customerName}</span>}</span>
+            <span className="text-xs font-normal px-2 py-1 bg-slate-200 text-slate-700 rounded-full">
+              {isOwnFrame ? 'Reglaze (Own Frame)' : 'New Frame'}
+            </span>
           </h2>
           
           <div className="space-y-2 text-gray-700">
-            <div className="flex justify-between">
-              <span>Frame:</span>
-              <span className="font-semibold">£{framePrice || 0}</span>
-            </div>
+            {!isOwnFrame && (
+              <div className="flex justify-between">
+                <span>Frame:</span>
+                <span className="font-semibold">£{activeFramePrice}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Lens Base ({lensType} - {lensIndex}):</span>
               <span className="font-semibold">£{lensBaseCost}</span>
