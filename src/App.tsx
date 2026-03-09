@@ -1,5 +1,53 @@
 import { useState, useMemo, useEffect } from 'react';
 
+// --- Custom Styles for PDF Export ---
+const printStyles = `
+  @media print {
+    /* Hide all interactive demos, buttons, and sliders from the PDF */
+    .no-print, 
+    button, 
+    input[type="range"], 
+    select,
+    .bg-slate-900.rounded-2xl.p-8, /* Launch buttons containers */
+    table thead, /* Optional: hide table headers if you want a cleaner look */
+    .overflow-x-auto {
+      display: none !important;
+    }
+
+    /* Force background colours to show in the PDF */
+    body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      background-color: white !important;
+    }
+
+    /* Expand the quote to fill the page */
+    .max-w-5xl {
+      max-width: 100% !important;
+      margin: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    .bg-slate-900.text-white {
+      background-color: #0f172a !important; /* Slate-900 hex */
+      color: white !important;
+      border-radius: 0 !important;
+    }
+
+    /* Style the table for a clean paper look */
+    table {
+      border: 1px solid #e2e8f0 !important;
+    }
+    
+    td {
+      background-color: white !important;
+      color: black !important;
+      border: 1px solid #e2e8f0 !important;
+    }
+  }
+`;
+
 // --- Types ---
 type LensType = 'Single Vision' | 'Basic Varifocal' | 'Elite Varifocal' | 'Individual Varifocal';
 type LensIndex = '1.5' | '1.6' | '1.67' | '1.74';
@@ -488,8 +536,14 @@ export default function App() {
   const protectionCost = useMemo(() => getLightProtectionPrice(lightProtection, lensType), [lightProtection, lensType]);
   const totalCost = (isOwnFrame ? 0 : (framePrice || 0)) + lensBaseCost + coatingCost + protectionCost;
 
+  // --- PDF/Print Handler ---
+  const handleSaveQuote = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 py-10 px-4 font-sans text-slate-900">
+      <style>{printStyles}</style>
       <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
         <div className="bg-white py-6 px-8 flex justify-center border-b-4 border-[#3f9185]">
           <img src="https://img1.wsimg.com/isteam/ip/297dd456-b70f-4175-b7e6-7f1aabf6e6b3/blob-0f9c396.png/:/rs=w:315,h:63,cg:true,m/cr=w:315,h:63/qt=q:95" alt="Logo" className="h-14 object-contain" />
@@ -569,7 +623,8 @@ export default function App() {
             </div>
           )}
 
-          <div className="rounded-2xl border-2 border-gray-100 p-8 bg-white">
+<div className="rounded-2xl border-2 border-gray-100 p-8 bg-white no-print">
+  <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] mb-6">Coating Performance Guide</h3>
             <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] mb-6">Coating Performance Guide</h3>
             <table className="w-full text-sm text-center border-collapse">
               <thead>
@@ -616,7 +671,20 @@ export default function App() {
               <h2 className="text-3xl font-black uppercase tracking-tighter italic">Total Quote</h2>
               <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.2em] mt-2">Patient: {customerName || 'Pending Selection'}</p>
             </div>
-            <span className="text-[10px] font-black px-4 py-1.5 bg-[#3f9185]/20 text-[#3f9185] border border-[#3f9185]/30 rounded-full uppercase tracking-widest">{isOwnFrame ? 'Reglaze Service' : 'Complete Pair'}</span>
+            <div className="flex flex-col items-end gap-3 no-print">
+  <span className="text-[10px] font-black px-4 py-1.5 bg-[#3f9185]/20 text-[#3f9185] border border-[#3f9185]/30 rounded-full uppercase tracking-widest">
+    {isOwnFrame ? 'Reglaze Service' : 'Complete Pair'}
+  </span>
+  <button 
+    onClick={handleSaveQuote}
+    className="flex items-center gap-2 px-5 py-2 bg-[#3f9185] hover:bg-[#2c6b62] text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg transition-all transform hover:scale-105"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+    Save Quote as PDF
+  </button>
+</div>
           </div>
           <div className="grid grid-cols-2 gap-y-3 text-xs font-bold uppercase tracking-widest text-slate-400">
             {!isOwnFrame && <><span>Selected Frame</span><span className="text-right text-white">£{framePrice || 0}</span></>}
