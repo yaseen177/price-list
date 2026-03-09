@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 // --- Types ---
 type LensType = 'Single Vision' | 'Basic Varifocal' | 'Elite Varifocal' | 'Individual Varifocal';
@@ -90,33 +90,301 @@ const VarifocalDemo = ({ readingAdd }: { readingAdd: number }) => {
   );
 };
 
-// --- Weight Scale Visualiser Component ---
-const WeightScale = ({ weight }: { weight: number }) => {
-  const maxWeight = 100; // max expected weight in grams for the demo dial
-  const rotation = Math.min(180, (Math.max(0, weight) / maxWeight) * 180) - 90; 
+
+// --- Balance Scale Visualiser Component (LENSES ON TOP) ---
+const BalanceScale = ({ 
+  weightA, weightB, pathA, pathB, thickA, thickB, thinnerLens, lighterLens, thickDiffText, weightDiffText 
+}: { 
+  weightA: number, weightB: number, pathA: string, pathB: string, thickA: string, thickB: string, thinnerLens: string, lighterLens: string, thickDiffText: string, weightDiffText: string 
+}) => {
+  const maxTilt = 16; 
+  const maxWeight = Math.max(weightA, weightB);
+  const diffRatio = maxWeight === 0 ? 0 : (weightB - weightA) / maxWeight;
+  const angle = diffRatio * maxTilt;
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-16 h-8 overflow-hidden mt-1">
-        {/* Scale Dial Background */}
-        <div className="absolute top-0 left-0 w-16 h-16 bg-slate-50 rounded-full border-[3px] border-slate-200 shadow-inner"></div>
-        {/* Tick marks */}
-        <div className="absolute top-1 left-1 w-14 h-14 rounded-full border-t-[3px] border-blue-500 opacity-30 transform -rotate-45"></div>
-        
-        {/* Needle */}
-        <div 
-          className="absolute bottom-0 left-1/2 w-[2px] h-7 bg-slate-800 origin-bottom transition-transform duration-700 ease-out"
-          style={{ transform: `translateX(-50%) rotate(${rotation}deg)` }}
-        ></div>
-        {/* Centre pin */}
-        <div className="absolute bottom-[-3px] left-1/2 w-2.5 h-2.5 bg-blue-500 rounded-full transform -translate-x-1/2 shadow"></div>
+    <div className="flex flex-col items-center justify-end w-full h-[400px] lg:h-[480px] relative bg-white border-2 border-gray-100 rounded-3xl shadow-sm pb-24 mt-4">
+      
+      {/* Dynamic Results Header */}
+      <div className="absolute top-6 left-0 right-0 flex flex-col items-center px-4 text-center z-20">
+        <h4 className="text-xs font-black uppercase text-gray-400 tracking-[0.2em] mb-3">Live Result</h4>
+        <div className="flex flex-wrap justify-center gap-3">
+          {lighterLens !== 'EQUAL' && weightA !== 0 && (
+            <span className="px-5 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-sm font-black uppercase tracking-widest shadow-sm">
+              Lens {lighterLens} is {weightDiffText}
+            </span>
+          )}
+          {thinnerLens !== 'EQUAL' && weightA !== 0 && (
+            <span className="px-5 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-sm font-black uppercase tracking-widest shadow-sm">
+              Lens {thinnerLens} is {thickDiffText}
+            </span>
+          )}
+        </div>
       </div>
-      <span className="text-xs font-black text-slate-700 mt-1">{weight}g</span>
+      
+      {/* The Main Beam */}
+      <div className="w-[280px] md:w-[480px] h-3 bg-slate-800 rounded-full relative transition-transform duration-1000 ease-out z-10" style={{ transform: `rotate(${angle}deg)` }}>
+        
+        {/* === LEFT SIDE === */}
+        {/* Left Pan & Lens (Sitting ON TOP of the beam) */}
+        <div className="absolute left-0 bottom-full w-32 md:w-36 -translate-x-1/2 transition-transform duration-1000 ease-out origin-bottom flex flex-col items-center" style={{ transform: `rotate(${-angle}deg)` }}>
+          <div className="w-full h-32 md:h-40 flex items-end justify-center -mb-2 z-10">
+            <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible drop-shadow-xl">
+              <path d={pathA} fill="#3b82f6" fillOpacity="0.4" stroke="#2563eb" strokeWidth="2.5" className="transition-all duration-700 ease-out" />
+            </svg>
+          </div>
+          <div className="w-full h-2.5 bg-slate-700 rounded-full shadow-lg z-0"></div>
+          <div className="w-3 h-3 bg-slate-500 rounded-b-sm"></div>
+        </div>
+        
+        {/* Left Stats Box (Hanging BELOW the beam) */}
+        <div className="absolute left-0 top-full mt-3 w-32 md:w-36 -translate-x-1/2 transition-transform duration-1000 ease-out origin-top flex flex-col items-center" style={{ transform: `rotate(${-angle}deg)` }}>
+          <div className="flex flex-col items-center justify-center bg-white/90 backdrop-blur px-4 py-3 rounded-xl border-2 border-gray-200 shadow-md w-full">
+            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Lens A</span>
+            <div className={`font-black text-2xl md:text-3xl leading-none mt-1 ${lighterLens === 'A' ? 'text-emerald-500' : lighterLens === 'B' ? 'text-red-500' : 'text-slate-700'}`}>{weightA}g</div>
+            <div className={`text-xs font-bold mt-1 ${thinnerLens === 'A' ? 'text-emerald-500' : thinnerLens === 'B' ? 'text-red-500' : 'text-slate-500'}`}>{thickA}mm</div>
+          </div>
+        </div>
+
+        {/* === RIGHT SIDE === */}
+        {/* Right Pan & Lens (Sitting ON TOP of the beam) */}
+        <div className="absolute right-0 bottom-full w-32 md:w-36 translate-x-1/2 transition-transform duration-1000 ease-out origin-bottom flex flex-col items-center" style={{ transform: `rotate(${-angle}deg)` }}>
+          <div className="w-full h-32 md:h-40 flex items-end justify-center -mb-2 z-10">
+            <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible drop-shadow-xl">
+              <path d={pathB} fill="#3b82f6" fillOpacity="0.4" stroke="#2563eb" strokeWidth="2.5" className="transition-all duration-700 ease-out" />
+            </svg>
+          </div>
+          <div className="w-full h-2.5 bg-slate-700 rounded-full shadow-lg z-0"></div>
+          <div className="w-3 h-3 bg-slate-500 rounded-b-sm"></div>
+        </div>
+
+        {/* Right Stats Box (Hanging BELOW the beam) */}
+        <div className="absolute right-0 top-full mt-3 w-32 md:w-36 translate-x-1/2 transition-transform duration-1000 ease-out origin-top flex flex-col items-center" style={{ transform: `rotate(${-angle}deg)` }}>
+          <div className="flex flex-col items-center justify-center bg-white/90 backdrop-blur px-4 py-3 rounded-xl border-2 border-gray-200 shadow-md w-full">
+            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Lens B</span>
+            <div className={`font-black text-2xl md:text-3xl leading-none mt-1 ${lighterLens === 'B' ? 'text-emerald-500' : lighterLens === 'A' ? 'text-red-500' : 'text-slate-700'}`}>{weightB}g</div>
+            <div className={`text-xs font-bold mt-1 ${thinnerLens === 'B' ? 'text-emerald-500' : thinnerLens === 'A' ? 'text-red-500' : 'text-slate-500'}`}>{thickB}mm</div>
+          </div>
+        </div>
+
+        {/* Center Pivot Point */}
+        <div className="absolute left-1/2 top-1/2 w-6 h-6 bg-slate-200 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-20 border-[4px] border-slate-800 shadow"></div>
+      </div>
+      
+      {/* Fulcrum Base */}
+      <div className="w-0 h-0 border-l-[35px] border-l-transparent border-r-[35px] border-r-transparent border-b-[80px] border-b-slate-300 z-0 -mt-2"></div>
+      <div className="w-48 h-4 bg-slate-200 rounded-full mt-0 shadow-inner"></div>
     </div>
   );
 };
 
-// --- Vertical Refractive Index Simulator Component (Pop-Up Modal) ---
+// --- Head-to-Head Lens Comparison Modal ---
+const CompareIndicesDemo = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [prescription, setPrescription] = useState(-6.00);
+  const [indexA, setIndexA] = useState<'1.5' | '1.6' | '1.67' | '1.74'>('1.5');
+  const [indexB, setIndexB] = useState<'1.5' | '1.6' | '1.67' | '1.74'>('1.74');
+
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isOpen]);
+
+  const indicesData = {
+    '1.5': { n: 1.498, density: 1.32 },
+    '1.6': { n: 1.600, density: 1.30 },
+    '1.67': { n: 1.667, density: 1.35 },
+    '1.74': { n: 1.740, density: 1.47 },
+  };
+
+  const calculateMetrics = (p: number, indexLabel: '1.5' | '1.6' | '1.67' | '1.74') => {
+    const data = indicesData[indexLabel];
+    const absP = Math.abs(p);
+    const isPlus = p > 0;
+    
+    let visualDrama = 1;
+    if (data.n < 1.55) visualDrama = 3.2;
+    else if (data.n < 1.65) visualDrama = 2.0;
+    else if (data.n < 1.7) visualDrama = 1.3;
+    else visualDrama = 0.8;
+    
+    let thickFactor = 1.0;
+    if (data.n < 1.55) thickFactor = 1.00;
+    else if (data.n < 1.65) thickFactor = 0.80; // ~20% thinner
+    else if (data.n < 1.7) thickFactor = 0.68;  // ~32% thinner
+    else thickFactor = 0.58;                    // ~42% thinner
+    
+    let edgeThick = 4;
+    let centerThick = 4;
+    
+    if (p === 0) {
+      edgeThick = 4; centerThick = 4;
+    } else if (isPlus) {
+      edgeThick = 3; 
+      centerThick = 3 + (absP * visualDrama * 1.4);
+    } else {
+      centerThick = 2; 
+      edgeThick = 2 + (absP * visualDrama * 1.4);
+    }
+
+    const realisticThickMm = p === 0 ? 1.5 : 1.5 + (absP * 0.85 * thickFactor);
+    
+    const weightBase = 12; 
+    const weightAdded = absP * 4.5 * thickFactor * (data.density / 1.32);
+    const weight = p === 0 ? weightBase : Math.round(weightBase + weightAdded);
+
+    return { edgeThick, centerThick, weight, displayThickMm: realisticThickMm, n: data.n };
+  };
+
+  const getLensPathVertical = (p: number, edgeThick: number, centerThick: number) => {
+    const isPlus = p > 0;
+    if (p === 0) return "M 58,10 Q 58,60 58,110 L 62,110 Q 62,60 62,10 Z";
+    if (isPlus) {
+      const halfThick = centerThick / 2;
+      const halfEdge = edgeThick / 2; 
+      return `M ${60 - halfEdge},10 Q ${60 - halfThick},60 ${60 - halfEdge},110 L ${60 + halfEdge},110 Q ${60 + halfThick},60 ${60 + halfEdge},10 Z`;
+    } else {
+      const halfThick = edgeThick / 2;
+      const halfCenter = centerThick / 2; 
+      return `M ${60 - halfThick},10 Q ${60 - halfCenter},60 ${60 - halfThick},110 L ${60 + halfThick},110 Q ${60 + halfCenter},60 ${60 + halfThick},10 Z`;
+    }
+  };
+
+  const metricsA = calculateMetrics(prescription, indexA);
+  const metricsB = calculateMetrics(prescription, indexB);
+
+  const thinnerLens = metricsA.displayThickMm < metricsB.displayThickMm ? 'A' : metricsB.displayThickMm < metricsA.displayThickMm ? 'B' : 'EQUAL';
+  const lighterLens = metricsA.weight < metricsB.weight ? 'A' : metricsB.weight < metricsA.weight ? 'B' : 'EQUAL';
+
+  const getThicknessDiffText = () => {
+    if (thinnerLens === 'EQUAL' || prescription === 0) return "Identical Thickness";
+    const baseThickness = 1.5; 
+    const addedA = Math.max(0, metricsA.displayThickMm - baseThickness);
+    const addedB = Math.max(0, metricsB.displayThickMm - baseThickness);
+    
+    const maxAdded = Math.max(addedA, addedB);
+    const diffAdded = Math.abs(addedA - addedB);
+    
+    const pct = Math.round((diffAdded / maxAdded) * 100);
+    return ` ${pct}% Thinner`;
+  };
+
+  const getWeightDiffText = () => {
+    if (lighterLens === 'EQUAL' || prescription === 0) return "Identical Weight";
+    const diff = Math.abs(metricsA.weight - metricsB.weight);
+    const maxWeight = Math.max(metricsA.weight, metricsB.weight);
+    const pct = Math.round((diff / maxWeight) * 100);
+    return `${pct}% Lighter`;
+  };
+
+  return (
+    <>
+      <div className="bg-white rounded-2xl p-8 border-2 border-slate-200 shadow-sm mt-8">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h3 className="text-xl font-black uppercase tracking-tight text-slate-800">Head-to-Head Comparison</h3>
+            <p className="text-slate-500 text-sm font-medium mt-1">Compare two specific refractive indices side-by-side on our live scale.</p>
+          </div>
+          <button 
+            onClick={() => setIsOpen(true)} 
+            className="px-8 py-3 bg-slate-800 text-white font-black rounded-xl shadow hover:bg-slate-700 transition-all uppercase tracking-widest text-xs whitespace-nowrap"
+          >
+            Start Comparison
+          </button>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          
+          <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col relative border-4 border-[#3f9185] overflow-hidden">
+            
+            {/* Pinned Header */}
+            <div className="shrink-0 bg-white border-b border-gray-200 p-5 md:p-6 flex justify-between items-center z-20">
+              <div>
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Lens Weigh-In</h2>
+                <p className="text-slate-500 font-medium text-sm mt-1">Adjust the prescription to see the scales tip in real-time.</p>
+              </div>
+              <button onClick={() => setIsOpen(false)} className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-red-500 transition-colors text-xl">✕</button>
+            </div>
+
+            {/* Content Body - SIDE BY SIDE LAYOUT ON DESKTOP */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col lg:flex-row gap-8">
+              
+              {/* Left Column: Controls */}
+              <div className="w-full lg:w-[35%] flex flex-col gap-6 shrink-0">
+                
+                {/* PRESCRIPTION SLIDER */}
+                <div className="bg-white p-6 rounded-2xl border-2 border-[#3f9185]/30 shadow-md flex flex-col">
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Prescription</span>
+                    <span className={`text-2xl font-mono font-black px-4 py-1.5 rounded-lg border-2 shadow-inner ${prescription > 0 ? 'text-blue-600 border-blue-200 bg-blue-50' : prescription < 0 ? 'text-red-500 border-red-200 bg-red-50' : 'text-gray-500 border-gray-200 bg-white'}`}>
+                      {prescription > 0 ? '+' : ''}{prescription.toFixed(2)}
+                    </span>
+                  </div>
+                  <input 
+                    type="range" min="-10" max="8" step="0.25" value={prescription} 
+                    onChange={(e) => setPrescription(parseFloat(e.target.value))} 
+                    className="w-full h-3 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-[#3f9185]" 
+                  />
+                  <div className="flex justify-between text-[10px] font-black text-gray-400 mt-3 uppercase tracking-widest">
+                    <span>Minus (-10)</span>
+                    <span>Plano</span>
+                    <span>Plus (+8)</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                  {/* LENS A SELECTOR */}
+                  <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm text-center">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-3">Select Lens A</label>
+                    <select 
+                      value={indexA} onChange={(e) => setIndexA(e.target.value as any)}
+                      className="w-full p-3 text-center text-lg font-black text-slate-700 bg-gray-50 rounded-xl border-2 border-gray-200 focus:border-[#3f9185] outline-none cursor-pointer uppercase tracking-widest"
+                    >
+                      <option value="1.5">Index 1.5</option><option value="1.6">Index 1.6</option><option value="1.67">Index 1.67</option><option value="1.74">Index 1.74</option>
+                    </select>
+                  </div>
+
+                  {/* LENS B SELECTOR */}
+                  <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm text-center">
+                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-3">Select Lens B</label>
+                    <select 
+                      value={indexB} onChange={(e) => setIndexB(e.target.value as any)}
+                      className="w-full p-3 text-center text-lg font-black text-[#3f9185] bg-[#3f9185]/10 rounded-xl border-2 border-[#3f9185]/20 focus:border-[#3f9185] outline-none cursor-pointer uppercase tracking-widest"
+                    >
+                      <option value="1.5">Index 1.5</option><option value="1.6">Index 1.6</option><option value="1.67">Index 1.67</option><option value="1.74">Index 1.74</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: The Interactive Balance Scale */}
+              <div className="w-full lg:w-[65%] flex items-center justify-center pt-8">
+                <BalanceScale 
+                  weightA={metricsA.weight} 
+                  weightB={metricsB.weight} 
+                  pathA={getLensPathVertical(prescription, metricsA.edgeThick, metricsA.centerThick)}
+                  pathB={getLensPathVertical(prescription, metricsB.edgeThick, metricsB.centerThick)}
+                  thickA={metricsA.displayThickMm.toFixed(1)}
+                  thickB={metricsB.displayThickMm.toFixed(1)}
+                  lighterLens={lighterLens} 
+                  thinnerLens={thinnerLens}
+                  weightDiffText={getWeightDiffText()} 
+                  thickDiffText={getThicknessDiffText()}
+                />
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// --- Vertical Refractive Index Simulator Component (Grid View) ---
 const IndexDemo = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [prescription, setPrescription] = useState(-6.00);
@@ -127,18 +395,22 @@ const IndexDemo = () => {
     { label: '1.74', n: 1.740, density: 1.47 },
   ];
 
-  // Exaggerated calculations for maximum visual drama
   const calculateMetrics = (p: number, n: number, density: number) => {
     const absP = Math.abs(p);
     const isPlus = p > 0;
     
-    // Custom visual multipliers to create a huge dramatic difference between 1.5 and 1.74
     let visualDrama = 1;
-    if (n < 1.55) visualDrama = 6.0;      // 1.5: Extremely thick
-    else if (n < 1.65) visualDrama = 3.5; // 1.6: Noticeably thinner
-    else if (n < 1.7) visualDrama = 2.0;  // 1.67: Quite thin
-    else visualDrama = 1.0;               // 1.74: Razor thin
+    if (n < 1.55) visualDrama = 3.2;      
+    else if (n < 1.65) visualDrama = 2.0; 
+    else if (n < 1.7) visualDrama = 1.3;  
+    else visualDrama = 0.8;               
     
+    let thickFactor = 1.0;
+    if (n < 1.55) thickFactor = 1.00;
+    else if (n < 1.65) thickFactor = 0.80; 
+    else if (n < 1.7) thickFactor = 0.68;  
+    else thickFactor = 0.58;               
+
     let edgeThick = 4;
     let centerThick = 4;
     let sag = 0;
@@ -148,27 +420,25 @@ const IndexDemo = () => {
       centerThick = 4;
     } else if (isPlus) {
       edgeThick = 3; 
-      sag = absP * visualDrama * 1.8; // Massive centre bulge
+      sag = absP * visualDrama * 1.4; 
       centerThick = 3 + sag;
     } else {
       centerThick = 2; 
-      sag = absP * visualDrama * 1.8; // Massive edge flare
+      sag = absP * visualDrama * 1.4; 
       edgeThick = 2 + sag;
     }
 
-    // Keep the displayed mm numbers realistic so the quote makes sense physically
-    const realisticThickMm = p === 0 ? 2.0 : (isPlus ? 2 + (absP * 0.4 * (1.5/n)) : 1.5 + (absP * 0.5 * (1.5/n)));
+    const realisticThickMm = p === 0 ? 1.5 : 1.5 + (absP * 0.85 * thickFactor);
     
-    // Weight: Calculate based on the exaggerated volume but scaled down to realistic grams
-    const averageThick = (centerThick + edgeThick) / 2;
-    const weight = p === 0 ? 12 : Math.round(averageThick * (density / 1.32) * 1.6); 
+    const weightBase = 12; 
+    const weightAdded = absP * 4.5 * thickFactor * (density / 1.32);
+    const weight = p === 0 ? weightBase : Math.round(weightBase + weightAdded);
 
     return { edgeThick, centerThick, weight, displayThickMm: realisticThickMm };
   };
 
   const getLensPathVertical = (p: number, edgeThick: number, centerThick: number) => {
     const isPlus = p > 0;
-    // We use a 120x120 canvas to give the massive thicknesses room to breathe
     if (p === 0) return "M 58,10 Q 58,60 58,110 L 62,110 Q 62,60 62,10 Z";
     
     if (isPlus) {
@@ -184,7 +454,6 @@ const IndexDemo = () => {
 
   return (
     <>
-      {/* Launch Button Section */}
       <div className="bg-slate-900 rounded-2xl p-8 text-white shadow-xl mb-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
@@ -200,13 +469,12 @@ const IndexDemo = () => {
         </div>
       </div>
 
-      {/* Full-Screen Modal */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-y-auto relative">
+          
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col relative overflow-hidden border-4 border-slate-700">
             
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white/95 backdrop-blur z-20 border-b border-gray-100 p-6 md:p-8 flex justify-between items-center">
+            <div className="shrink-0 bg-white/95 backdrop-blur z-20 border-b border-gray-100 p-6 md:p-8 flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Lens Thickness & Weight Profile</h2>
                 <p className="text-slate-500 font-medium text-sm mt-1">Drag the slider to observe how standard plastic compares to high-index materials.</p>
@@ -219,8 +487,7 @@ const IndexDemo = () => {
               </button>
             </div>
 
-            <div className="p-6 md:p-8">
-              {/* Slider Controls */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8">
               <div className="mb-10 bg-gray-50 p-6 rounded-2xl border border-gray-200">
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Prescription Slider</span>
@@ -240,7 +507,6 @@ const IndexDemo = () => {
                 </div>
               </div>
 
-              {/* Lens Profiles Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {indices.map((item) => {
                   const { edgeThick, centerThick, weight, displayThickMm } = calculateMetrics(prescription, item.n, item.density);
@@ -249,10 +515,8 @@ const IndexDemo = () => {
                     <div key={item.label} className="bg-white rounded-2xl p-6 border-2 border-gray-100 flex flex-col items-center shadow-md hover:border-blue-200 transition-colors">
                       <span className="text-lg font-black text-slate-800 mb-6 tracking-widest uppercase">INDEX {item.label}</span>
                       
-                      {/* Dynamic SVG Lens Profile - TALLER */}
-<div className="w-full h-64 md:h-96 flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 shadow-inner overflow-hidden">
-  {/* The tighter viewBox (20 0 80 120) trims the empty sides, forcing the lens to scale up vertically */}
-  <svg viewBox="20 0 80 120" preserveAspectRatio="none" className="w-full h-full overflow-visible p-2">
+                      <div className="w-full h-48 md:h-64 flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 shadow-inner overflow-hidden">
+                        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible p-2">
                           <path 
                             d={getLensPathVertical(prescription, edgeThick, centerThick)} 
                             fill="#3b82f6" 
@@ -272,11 +536,11 @@ const IndexDemo = () => {
                             {prescription === 0 ? "2.0mm" : `${displayThickMm.toFixed(1)}mm`}
                           </span>
                         </div>
-                        
-                        {/* Weight Scale Visualiser */}
-                        <div className="flex flex-col items-center pt-2">
-                            <span className="text-xs font-bold text-gray-500 uppercase tracking-tighter mb-2">Total Weight</span>
-                            <WeightScale weight={weight} />
+                        <div className="flex justify-between items-baseline border-b border-gray-100 pb-3">
+                          <span className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Est. Weight</span>
+                          <span className="text-lg font-black text-slate-800">
+                            {weight}g
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -367,8 +631,8 @@ export default function App() {
             </table>
           </div>
 
-          {/* New Index Visualiser Trigger Button */}
           <IndexDemo />
+          <CompareIndicesDemo />
 
           {lensType.includes('Varifocal') && (
             <div className="bg-slate-900 rounded-2xl p-8 text-white shadow-xl">
