@@ -91,7 +91,7 @@ const VarifocalDemo = ({ readingAdd }: { readingAdd: number }) => {
 };
 
 
-// --- Balance Scale Visualiser Component (LENSES ON TOP) ---
+// --- Balance Scale Visualiser Component ---
 const BalanceScale = ({ 
   weightA, weightB, pathA, pathB, thickA, thickB, thinnerLens, lighterLens, thickDiffText, weightDiffText 
 }: { 
@@ -134,7 +134,7 @@ const BalanceScale = ({
             </svg>
           </div>
           <div className="w-full h-2.5 bg-slate-700 rounded-full shadow-lg z-0"></div>
-          <div className="w-3 h-3 bg-slate-500 rounded-b-sm"></div>
+          <div className="w-3 h-3 bg-slate-500 rounded-b-sm z-0"></div>
         </div>
         
         {/* Left Stats Box (Hanging BELOW the beam) */}
@@ -155,7 +155,7 @@ const BalanceScale = ({
             </svg>
           </div>
           <div className="w-full h-2.5 bg-slate-700 rounded-full shadow-lg z-0"></div>
-          <div className="w-3 h-3 bg-slate-500 rounded-b-sm"></div>
+          <div className="w-3 h-3 bg-slate-500 rounded-b-sm z-0"></div>
         </div>
 
         {/* Right Stats Box (Hanging BELOW the beam) */}
@@ -178,27 +178,30 @@ const BalanceScale = ({
   );
 };
 
-// --- Head-to-Head Lens Comparison Modal ---
-const CompareIndicesDemo = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [prescription, setPrescription] = useState(-6.00);
-  const [indexA, setIndexA] = useState<'1.5' | '1.6' | '1.67' | '1.74'>('1.5');
-  const [indexB, setIndexB] = useState<'1.5' | '1.6' | '1.67' | '1.74'>('1.74');
 
+// --- UNIFIED Lens Thickness & Comparison Modal ---
+const LensThicknessVisualiser = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'compare' | 'grid'>('compare');
+  const [prescription, setPrescription] = useState(-6.00);
+  const [indexA, setIndexA] = useState<LensIndex>('1.5');
+  const [indexB, setIndexB] = useState<LensIndex>('1.74');
+
+  // Lock body scroll when open
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
-  const indicesData = {
-    '1.5': { n: 1.498, density: 1.32 },
-    '1.6': { n: 1.600, density: 1.30 },
-    '1.67': { n: 1.667, density: 1.35 },
-    '1.74': { n: 1.740, density: 1.47 },
+  const indicesData: Record<LensIndex, { n: number, density: number, label: string }> = {
+    '1.5': { n: 1.498, density: 1.32, label: '1.5' },
+    '1.6': { n: 1.600, density: 1.30, label: '1.6' },
+    '1.67': { n: 1.667, density: 1.35, label: '1.67' },
+    '1.74': { n: 1.740, density: 1.47, label: '1.74' },
   };
 
-  const calculateMetrics = (p: number, indexLabel: '1.5' | '1.6' | '1.67' | '1.74') => {
+  const calculateMetrics = (p: number, indexLabel: LensIndex) => {
     const data = indicesData[indexLabel];
     const absP = Math.abs(p);
     const isPlus = p > 0;
@@ -211,9 +214,9 @@ const CompareIndicesDemo = () => {
     
     let thickFactor = 1.0;
     if (data.n < 1.55) thickFactor = 1.00;
-    else if (data.n < 1.65) thickFactor = 0.80; // ~20% thinner
-    else if (data.n < 1.7) thickFactor = 0.68;  // ~32% thinner
-    else thickFactor = 0.58;                    // ~42% thinner
+    else if (data.n < 1.65) thickFactor = 0.80; 
+    else if (data.n < 1.7) thickFactor = 0.68;  
+    else thickFactor = 0.58;                    
     
     let edgeThick = 4;
     let centerThick = 4;
@@ -234,7 +237,7 @@ const CompareIndicesDemo = () => {
     const weightAdded = absP * 4.5 * thickFactor * (data.density / 1.32);
     const weight = p === 0 ? weightBase : Math.round(weightBase + weightAdded);
 
-    return { edgeThick, centerThick, weight, displayThickMm: realisticThickMm, n: data.n };
+    return { edgeThick, centerThick, weight, displayThickMm: realisticThickMm, n: data.n, label: data.label };
   };
 
   const getLensPathVertical = (p: number, edgeThick: number, centerThick: number) => {
@@ -280,184 +283,10 @@ const CompareIndicesDemo = () => {
 
   return (
     <>
-      <div className="bg-white rounded-2xl p-8 border-2 border-slate-200 shadow-sm mt-8">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h3 className="text-xl font-black uppercase tracking-tight text-slate-800">Head-to-Head Comparison</h3>
-            <p className="text-slate-500 text-sm font-medium mt-1">Compare two specific refractive indices side-by-side on our live scale.</p>
-          </div>
-          <button 
-            onClick={() => setIsOpen(true)} 
-            className="px-8 py-3 bg-slate-800 text-white font-black rounded-xl shadow hover:bg-slate-700 transition-all uppercase tracking-widest text-xs whitespace-nowrap"
-          >
-            Start Comparison
-          </button>
-        </div>
-      </div>
-
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          
-          <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col relative border-4 border-[#3f9185] overflow-hidden">
-            
-            {/* Pinned Header */}
-            <div className="shrink-0 bg-white border-b border-gray-200 p-5 md:p-6 flex justify-between items-center z-20">
-              <div>
-                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Lens Weigh-In</h2>
-                <p className="text-slate-500 font-medium text-sm mt-1">Adjust the prescription to see the scales tip in real-time.</p>
-              </div>
-              <button onClick={() => setIsOpen(false)} className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-red-500 transition-colors text-xl">✕</button>
-            </div>
-
-            {/* Content Body - SIDE BY SIDE LAYOUT ON DESKTOP */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col lg:flex-row gap-8">
-              
-              {/* Left Column: Controls */}
-              <div className="w-full lg:w-[35%] flex flex-col gap-6 shrink-0">
-                
-                {/* PRESCRIPTION SLIDER */}
-                <div className="bg-white p-6 rounded-2xl border-2 border-[#3f9185]/30 shadow-md flex flex-col">
-                  <div className="flex justify-between items-center mb-6">
-                    <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Prescription</span>
-                    <span className={`text-2xl font-mono font-black px-4 py-1.5 rounded-lg border-2 shadow-inner ${prescription > 0 ? 'text-blue-600 border-blue-200 bg-blue-50' : prescription < 0 ? 'text-red-500 border-red-200 bg-red-50' : 'text-gray-500 border-gray-200 bg-white'}`}>
-                      {prescription > 0 ? '+' : ''}{prescription.toFixed(2)}
-                    </span>
-                  </div>
-                  <input 
-                    type="range" min="-10" max="8" step="0.25" value={prescription} 
-                    onChange={(e) => setPrescription(parseFloat(e.target.value))} 
-                    className="w-full h-3 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-[#3f9185]" 
-                  />
-                  <div className="flex justify-between text-[10px] font-black text-gray-400 mt-3 uppercase tracking-widest">
-                    <span>Minus (-10)</span>
-                    <span>Plano</span>
-                    <span>Plus (+8)</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-                  {/* LENS A SELECTOR */}
-                  <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm text-center">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-3">Select Lens A</label>
-                    <select 
-                      value={indexA} onChange={(e) => setIndexA(e.target.value as any)}
-                      className="w-full p-3 text-center text-lg font-black text-slate-700 bg-gray-50 rounded-xl border-2 border-gray-200 focus:border-[#3f9185] outline-none cursor-pointer uppercase tracking-widest"
-                    >
-                      <option value="1.5">Index 1.5</option><option value="1.6">Index 1.6</option><option value="1.67">Index 1.67</option><option value="1.74">Index 1.74</option>
-                    </select>
-                  </div>
-
-                  {/* LENS B SELECTOR */}
-                  <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm text-center">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-3">Select Lens B</label>
-                    <select 
-                      value={indexB} onChange={(e) => setIndexB(e.target.value as any)}
-                      className="w-full p-3 text-center text-lg font-black text-[#3f9185] bg-[#3f9185]/10 rounded-xl border-2 border-[#3f9185]/20 focus:border-[#3f9185] outline-none cursor-pointer uppercase tracking-widest"
-                    >
-                      <option value="1.5">Index 1.5</option><option value="1.6">Index 1.6</option><option value="1.67">Index 1.67</option><option value="1.74">Index 1.74</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: The Interactive Balance Scale */}
-              <div className="w-full lg:w-[65%] flex items-center justify-center pt-8">
-                <BalanceScale 
-                  weightA={metricsA.weight} 
-                  weightB={metricsB.weight} 
-                  pathA={getLensPathVertical(prescription, metricsA.edgeThick, metricsA.centerThick)}
-                  pathB={getLensPathVertical(prescription, metricsB.edgeThick, metricsB.centerThick)}
-                  thickA={metricsA.displayThickMm.toFixed(1)}
-                  thickB={metricsB.displayThickMm.toFixed(1)}
-                  lighterLens={lighterLens} 
-                  thinnerLens={thinnerLens}
-                  weightDiffText={getWeightDiffText()} 
-                  thickDiffText={getThicknessDiffText()}
-                />
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
-// --- Vertical Refractive Index Simulator Component (Grid View) ---
-const IndexDemo = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [prescription, setPrescription] = useState(-6.00);
-  const indices: { label: '1.5' | '1.6' | '1.67' | '1.74'; n: number; density: number }[] = [
-    { label: '1.5', n: 1.498, density: 1.32 },
-    { label: '1.6', n: 1.600, density: 1.30 },
-    { label: '1.67', n: 1.667, density: 1.35 },
-    { label: '1.74', n: 1.740, density: 1.47 },
-  ];
-
-  const calculateMetrics = (p: number, n: number, density: number) => {
-    const absP = Math.abs(p);
-    const isPlus = p > 0;
-    
-    let visualDrama = 1;
-    if (n < 1.55) visualDrama = 3.2;      
-    else if (n < 1.65) visualDrama = 2.0; 
-    else if (n < 1.7) visualDrama = 1.3;  
-    else visualDrama = 0.8;               
-    
-    let thickFactor = 1.0;
-    if (n < 1.55) thickFactor = 1.00;
-    else if (n < 1.65) thickFactor = 0.80; 
-    else if (n < 1.7) thickFactor = 0.68;  
-    else thickFactor = 0.58;               
-
-    let edgeThick = 4;
-    let centerThick = 4;
-    let sag = 0;
-    
-    if (p === 0) {
-      edgeThick = 4;
-      centerThick = 4;
-    } else if (isPlus) {
-      edgeThick = 3; 
-      sag = absP * visualDrama * 1.4; 
-      centerThick = 3 + sag;
-    } else {
-      centerThick = 2; 
-      sag = absP * visualDrama * 1.4; 
-      edgeThick = 2 + sag;
-    }
-
-    const realisticThickMm = p === 0 ? 1.5 : 1.5 + (absP * 0.85 * thickFactor);
-    
-    const weightBase = 12; 
-    const weightAdded = absP * 4.5 * thickFactor * (density / 1.32);
-    const weight = p === 0 ? weightBase : Math.round(weightBase + weightAdded);
-
-    return { edgeThick, centerThick, weight, displayThickMm: realisticThickMm };
-  };
-
-  const getLensPathVertical = (p: number, edgeThick: number, centerThick: number) => {
-    const isPlus = p > 0;
-    if (p === 0) return "M 58,10 Q 58,60 58,110 L 62,110 Q 62,60 62,10 Z";
-    
-    if (isPlus) {
-      const halfThick = centerThick / 2;
-      const halfEdge = edgeThick / 2; 
-      return `M ${60 - halfEdge},10 Q ${60 - halfThick},60 ${60 - halfEdge},110 L ${60 + halfEdge},110 Q ${60 + halfThick},60 ${60 + halfEdge},10 Z`;
-    } else {
-      const halfThick = edgeThick / 2;
-      const halfCenter = centerThick / 2; 
-      return `M ${60 - halfThick},10 Q ${60 - halfCenter},60 ${60 - halfThick},110 L ${60 + halfThick},110 Q ${60 + halfCenter},60 ${60 + halfThick},10 Z`;
-    }
-  };
-
-  return (
-    <>
       <div className="bg-slate-900 rounded-2xl p-8 text-white shadow-xl mb-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
-            <h3 className="text-xl font-black uppercase tracking-tight">Lens Thickness Visualiser</h3>
+            <h3 className="text-xl font-black uppercase tracking-tight text-white">Lens Thickness & Weight Visualiser</h3>
             <p className="text-slate-400 text-sm font-medium mt-1">Compare physical profiles and weight across different refractive indices.</p>
           </div>
           <button 
@@ -470,83 +299,170 @@ const IndexDemo = () => {
       </div>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col relative overflow-hidden border-4 border-slate-700">
+          <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col relative border-4 border-[#3f9185] overflow-hidden">
             
-            <div className="shrink-0 bg-white/95 backdrop-blur z-20 border-b border-gray-100 p-6 md:p-8 flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Lens Thickness & Weight Profile</h2>
-                <p className="text-slate-500 font-medium text-sm mt-1">Drag the slider to observe how standard plastic compares to high-index materials.</p>
+            {/* Pinned Header with Tabs */}
+            <div className="shrink-0 bg-white border-b border-gray-200 p-5 md:p-6 flex flex-col md:flex-row justify-between items-center z-20 gap-4">
+              <div className="w-full md:w-auto flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Lens Weigh-In</h2>
+                </div>
+                <button onClick={() => setIsOpen(false)} className="md:hidden w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-red-500 transition-colors text-xl">✕</button>
               </div>
-              <button 
-                onClick={() => setIsOpen(false)} 
-                className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors text-xl"
-              >
-                ✕
-              </button>
+
+              {/* View Toggle Tabs */}
+              <div className="flex bg-gray-100 p-1.5 rounded-xl border border-gray-200 w-full md:w-auto">
+                <button 
+                  onClick={() => setActiveTab('compare')}
+                  className={`flex-1 md:flex-none px-6 py-2.5 text-xs font-black rounded-lg transition-all uppercase tracking-widest ${activeTab === 'compare' ? 'bg-white text-slate-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  Head-to-Head
+                </button>
+                <button 
+                  onClick={() => setActiveTab('grid')}
+                  className={`flex-1 md:flex-none px-6 py-2.5 text-xs font-black rounded-lg transition-all uppercase tracking-widest ${activeTab === 'grid' ? 'bg-white text-slate-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  All Indices
+                </button>
+              </div>
+
+              <button onClick={() => setIsOpen(false)} className="hidden md:flex w-10 h-10 bg-gray-100 rounded-full items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-red-500 transition-colors text-xl">✕</button>
             </div>
 
+            {/* Scrollable Content Body */}
             <div className="flex-1 overflow-y-auto p-6 md:p-8">
-              <div className="mb-10 bg-gray-50 p-6 rounded-2xl border border-gray-200">
-                <div className="flex justify-between items-center mb-6">
-                  <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Prescription Slider</span>
-                  <span className={`text-3xl font-mono font-black px-6 py-2 rounded-xl border-2 shadow-sm ${prescription > 0 ? 'text-blue-600 border-blue-200 bg-blue-50' : prescription < 0 ? 'text-red-500 border-red-200 bg-red-50' : 'text-gray-500 border-gray-200 bg-white'}`}>
-                    {prescription > 0 ? '+' : ''}{prescription.toFixed(2)}
-                  </span>
-                </div>
-                <input 
-                  type="range" min="-10" max="8" step="0.25" value={prescription} 
-                  onChange={(e) => setPrescription(parseFloat(e.target.value))} 
-                  className="w-full h-4 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-[#3f9185]" 
-                />
-                <div className="flex justify-between text-xs font-black text-gray-400 mt-4 uppercase tracking-widest">
-                  <span>High Minus (-10)</span>
-                  <span>Plano (0.00)</span>
-                  <span>High Plus (+8)</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {indices.map((item) => {
-                  const { edgeThick, centerThick, weight, displayThickMm } = calculateMetrics(prescription, item.n, item.density);
-                  
-                  return (
-                    <div key={item.label} className="bg-white rounded-2xl p-6 border-2 border-gray-100 flex flex-col items-center shadow-md hover:border-blue-200 transition-colors">
-                      <span className="text-lg font-black text-slate-800 mb-6 tracking-widest uppercase">INDEX {item.label}</span>
-                      
-                      <div className="w-full h-48 md:h-64 flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 shadow-inner overflow-hidden">
-                        <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible p-2">
-                          <path 
-                            d={getLensPathVertical(prescription, edgeThick, centerThick)} 
-                            fill="#3b82f6" 
-                            fillOpacity="0.3" 
-                            stroke="#2563eb" 
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            className="transition-all duration-700 ease-out drop-shadow-md"
-                          />
-                        </svg>
+              
+              {activeTab === 'compare' ? (
+                /* --- HEAD TO HEAD VIEW --- */
+                <div className="flex flex-col lg:flex-row gap-8">
+                  {/* Left Column: Controls */}
+                  <div className="w-full lg:w-[35%] flex flex-col gap-6 shrink-0">
+                    
+                    <div className="bg-white p-6 rounded-2xl border-2 border-[#3f9185]/30 shadow-md flex flex-col">
+                      <div className="flex justify-between items-center mb-6">
+                        <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Prescription</span>
+                        <span className={`text-2xl font-mono font-black px-4 py-1.5 rounded-lg border-2 shadow-inner ${prescription > 0 ? 'text-blue-600 border-blue-200 bg-blue-50' : prescription < 0 ? 'text-red-500 border-red-200 bg-red-50' : 'text-gray-500 border-gray-200 bg-white'}`}>
+                          {prescription > 0 ? '+' : ''}{prescription.toFixed(2)}
+                        </span>
                       </div>
-
-                      <div className="w-full mt-8 space-y-4">
-                        <div className="flex justify-between items-baseline border-b border-gray-100 pb-3">
-                          <span className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Max Thickness</span>
-                          <span className="text-lg font-black text-slate-800">
-                            {prescription === 0 ? "2.0mm" : `${displayThickMm.toFixed(1)}mm`}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-baseline border-b border-gray-100 pb-3">
-                          <span className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Est. Weight</span>
-                          <span className="text-lg font-black text-slate-800">
-                            {weight}g
-                          </span>
-                        </div>
+                      <input 
+                        type="range" min="-10" max="8" step="0.25" value={prescription} 
+                        onChange={(e) => setPrescription(parseFloat(e.target.value))} 
+                        className="w-full h-3 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-[#3f9185]" 
+                      />
+                      <div className="flex justify-between text-[10px] font-black text-gray-400 mt-3 uppercase tracking-widest">
+                        <span>Minus (-10)</span>
+                        <span>Plano</span>
+                        <span>Plus (+8)</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm text-center">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-3">Select Lens A</label>
+                        <select 
+                          value={indexA} onChange={(e) => setIndexA(e.target.value as any)}
+                          className="w-full p-3 text-center text-lg font-black text-slate-700 bg-gray-50 rounded-xl border-2 border-gray-200 focus:border-[#3f9185] outline-none cursor-pointer uppercase tracking-widest"
+                        >
+                          <option value="1.5">Index 1.5</option><option value="1.6">Index 1.6</option><option value="1.67">Index 1.67</option><option value="1.74">Index 1.74</option>
+                        </select>
+                      </div>
+
+                      <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm text-center">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block mb-3">Select Lens B</label>
+                        <select 
+                          value={indexB} onChange={(e) => setIndexB(e.target.value as any)}
+                          className="w-full p-3 text-center text-lg font-black text-[#3f9185] bg-[#3f9185]/10 rounded-xl border-2 border-[#3f9185]/20 focus:border-[#3f9185] outline-none cursor-pointer uppercase tracking-widest"
+                        >
+                          <option value="1.5">Index 1.5</option><option value="1.6">Index 1.6</option><option value="1.67">Index 1.67</option><option value="1.74">Index 1.74</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Balance Scale */}
+                  <div className="w-full lg:w-[65%] flex items-center justify-center lg:pt-0">
+                    <BalanceScale 
+                      weightA={metricsA.weight} 
+                      weightB={metricsB.weight} 
+                      pathA={getLensPathVertical(prescription, metricsA.edgeThick, metricsA.centerThick)}
+                      pathB={getLensPathVertical(prescription, metricsB.edgeThick, metricsB.centerThick)}
+                      thickA={metricsA.displayThickMm.toFixed(1)}
+                      thickB={metricsB.displayThickMm.toFixed(1)}
+                      lighterLens={lighterLens} 
+                      thinnerLens={thinnerLens}
+                      weightDiffText={getWeightDiffText()} 
+                      thickDiffText={getThicknessDiffText()}
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* --- ALL INDICES GRID VIEW --- */
+                <div className="flex flex-col">
+                  <div className="mb-10 bg-white p-6 rounded-2xl border-2 border-gray-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Prescription Slider</span>
+                      <span className={`text-3xl font-mono font-black px-6 py-2 rounded-xl border-2 shadow-sm ${prescription > 0 ? 'text-blue-600 border-blue-200 bg-blue-50' : prescription < 0 ? 'text-red-500 border-red-200 bg-red-50' : 'text-gray-500 border-gray-200 bg-white'}`}>
+                        {prescription > 0 ? '+' : ''}{prescription.toFixed(2)}
+                      </span>
+                    </div>
+                    <input 
+                      type="range" min="-10" max="8" step="0.25" value={prescription} 
+                      onChange={(e) => setPrescription(parseFloat(e.target.value))} 
+                      className="w-full h-4 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-[#3f9185]" 
+                    />
+                    <div className="flex justify-between text-xs font-black text-gray-400 mt-4 uppercase tracking-widest">
+                      <span>High Minus (-10)</span>
+                      <span>Plano (0.00)</span>
+                      <span>High Plus (+8)</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {(['1.5', '1.6', '1.67', '1.74'] as LensIndex[]).map((label) => {
+                      const { edgeThick, centerThick, weight, displayThickMm } = calculateMetrics(prescription, label);
+                      
+                      return (
+                        <div key={label} className="bg-white rounded-2xl p-6 border-2 border-gray-100 flex flex-col items-center shadow-md hover:border-blue-200 transition-colors">
+                          <span className="text-lg font-black text-slate-800 mb-6 tracking-widest uppercase">INDEX {label}</span>
+                          
+                          <div className="w-full h-48 md:h-64 flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 shadow-inner overflow-hidden">
+                            <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible p-2">
+                              <path 
+                                d={getLensPathVertical(prescription, edgeThick, centerThick)} 
+                                fill="#3b82f6" 
+                                fillOpacity="0.3" 
+                                stroke="#2563eb" 
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                className="transition-all duration-700 ease-out drop-shadow-md"
+                              />
+                            </svg>
+                          </div>
+
+                          <div className="w-full mt-8 space-y-4">
+                            <div className="flex justify-between items-baseline border-b border-gray-100 pb-3">
+                              <span className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Max Thickness</span>
+                              <span className="text-lg font-black text-slate-800">
+                                {prescription === 0 ? "2.0mm" : `${displayThickMm.toFixed(1)}mm`}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-baseline border-b border-gray-100 pb-3">
+                              <span className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Est. Weight</span>
+                              <span className="text-lg font-black text-slate-800">
+                                {weight}g
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -554,6 +470,7 @@ const IndexDemo = () => {
     </>
   );
 };
+
 
 export default function App() {
   const [customerName, setCustomerName] = useState('');
@@ -631,8 +548,7 @@ export default function App() {
             </table>
           </div>
 
-          <IndexDemo />
-          <CompareIndicesDemo />
+          <LensThicknessVisualiser />
 
           {lensType.includes('Varifocal') && (
             <div className="bg-slate-900 rounded-2xl p-8 text-white shadow-xl">
