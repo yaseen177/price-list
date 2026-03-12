@@ -51,22 +51,22 @@ const printStyles = `
 
 // --- Types ---
 type LensType = 'Single Vision' | 'Basic Varifocal' | 'Elite Varifocal' | 'Individual Varifocal';
-type LensIndex = '1.5' | '1.6' | '1.67' | '1.74';
+type LensIndex = '1.5' | '1.6 Spherical' | '1.6 Aspheric' | '1.67' | '1.74';
 type Coating = 'None' | 'MAR' | 'Blue Filter';
 type LightProtection = 'None' | 'Transitions' | 'XtrActive Transitions' | 'Solid Tint';
 
 // --- Pricing Logic ---
 const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean): number => {
   if (type === 'Single Vision') {
-    const newPrices = { '1.5': 0, '1.6': 35, '1.67': 100, '1.74': 149 };
-    const ownPrices = { '1.5': 59, '1.6': 94, '1.67': 159, '1.74': 208 };
+    const newPrices = { '1.5': 0, '1.6 Spherical': 35, '1.6 Aspheric': 65, '1.67': 100, '1.74': 149 };
+    const ownPrices = { '1.5': 59, '1.6 Spherical': 94, '1.6 Aspheric': 124, '1.67': 159, '1.74': 208 };
     return isOwnFrame ? ownPrices[index] : newPrices[index];
   }
   const baseVarifocal = type === 'Basic Varifocal' ? { new: [119, 184, 214, 264], own: [139, 204, 234, 284] } :
                         type === 'Elite Varifocal' ? { new: [139, 234, 264, 314], own: [159, 254, 284, 334] } :
                         { new: [199, 294, 314, 374], own: [219, 314, 334, 394] };
   
-  const idxMap = { '1.5': 0, '1.6': 1, '1.67': 2, '1.74': 3 };
+  const idxMap = { '1.5': 0, '1.6 Spherical': 1, '1.6 Aspheric': 1, '1.67': 2, '1.74': 3 };
   return isOwnFrame ? baseVarifocal.own[idxMap[index]] : baseVarifocal.new[idxMap[index]];
 };
 
@@ -140,7 +140,7 @@ const VarifocalDemo = ({ readingAdd }: { readingAdd: number }) => {
 };
 
 
-// --- Balance Scale Visualiser Component (LENSES ON TOP - FULLY RESPONSIVE) ---
+// --- Balance Scale Visualiser Component ---
 const BalanceScale = ({ 
   weightA, weightB, pathA, pathB, thickA, thickB, thinnerLens, lighterLens, thickDiffText, weightDiffText 
 }: { 
@@ -229,8 +229,8 @@ const LensThicknessVisualiser = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'compare' | 'grid'>('compare');
   const [prescription, setPrescription] = useState(-6.00);
-  const [indexA, setIndexA] = useState<LensIndex>('1.5');
-  const [indexB, setIndexB] = useState<LensIndex>('1.74');
+  const [indexA, setIndexA] = useState<LensIndex>('1.6 Spherical');
+  const [indexB, setIndexB] = useState<LensIndex>('1.6 Aspheric');
 
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
@@ -240,7 +240,8 @@ const LensThicknessVisualiser = () => {
 
   const indicesData: Record<LensIndex, { n: number, density: number, label: string }> = {
     '1.5': { n: 1.498, density: 1.32, label: '1.5' },
-    '1.6': { n: 1.600, density: 1.30, label: '1.6' },
+    '1.6 Spherical': { n: 1.600, density: 1.30, label: '1.6 SPH' },
+    '1.6 Aspheric': { n: 1.600, density: 1.30, label: '1.6 ASP' },
     '1.67': { n: 1.667, density: 1.35, label: '1.67' },
     '1.74': { n: 1.740, density: 1.47, label: '1.74' },
   };
@@ -250,14 +251,18 @@ const LensThicknessVisualiser = () => {
     const absP = Math.abs(p);
     const isPlus = p > 0;
     
+    // Aspheric visual multiplier physically flattens the drawing curve compared to Spherical
     let visualDrama = 1;
     if (data.n < 1.55) visualDrama = 3.2;
-    else if (data.n < 1.65) visualDrama = 2.0;
+    else if (indexLabel === '1.6 Aspheric') visualDrama = 1.6; 
+    else if (data.n < 1.65) visualDrama = 2.0;                 
     else if (data.n < 1.7) visualDrama = 1.3;
     else visualDrama = 0.8;
     
+    // Accurate Marketing Thickness Ratios
     let thickFactor = 1.0;
     if (data.n < 1.55) thickFactor = 1.00;
+    else if (indexLabel === '1.6 Aspheric') thickFactor = 0.72; 
     else if (data.n < 1.65) thickFactor = 0.80; 
     else if (data.n < 1.7) thickFactor = 0.68;  
     else thickFactor = 0.58;                    
@@ -410,7 +415,11 @@ const LensThicknessVisualiser = () => {
                           value={indexA} onChange={(e) => setIndexA(e.target.value as any)}
                           className="w-full p-2 md:p-3 text-center text-sm md:text-lg font-black text-slate-700 bg-gray-50 rounded-xl border-2 border-gray-200 focus:border-[#3f9185] outline-none cursor-pointer uppercase tracking-widest"
                         >
-                          <option value="1.5">Index 1.5</option><option value="1.6">Index 1.6</option><option value="1.67">Index 1.67</option><option value="1.74">Index 1.74</option>
+                          <option value="1.5">Index 1.5</option>
+                          <option value="1.6 Spherical">Index 1.6 (Thin)</option>
+                          <option value="1.6 Aspheric">Index 1.6 (Thin&Flat)</option>
+                          <option value="1.67">Index 1.67</option>
+                          <option value="1.74">Index 1.74</option>
                         </select>
                       </div>
 
@@ -420,7 +429,11 @@ const LensThicknessVisualiser = () => {
                           value={indexB} onChange={(e) => setIndexB(e.target.value as any)}
                           className="w-full p-2 md:p-3 text-center text-sm md:text-lg font-black text-[#3f9185] bg-[#3f9185]/10 rounded-xl border-2 border-[#3f9185]/20 focus:border-[#3f9185] outline-none cursor-pointer uppercase tracking-widest"
                         >
-                          <option value="1.5">Index 1.5</option><option value="1.6">Index 1.6</option><option value="1.67">Index 1.67</option><option value="1.74">Index 1.74</option>
+                          <option value="1.5">Index 1.5</option>
+                          <option value="1.6 Spherical">Index 1.6 (Thin)</option>
+                          <option value="1.6 Aspheric">Index 1.6 (Thin&Flat)</option>
+                          <option value="1.67">Index 1.67</option>
+                          <option value="1.74">Index 1.74</option>
                         </select>
                       </div>
                     </div>
@@ -464,13 +477,14 @@ const LensThicknessVisualiser = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                    {(['1.5', '1.6', '1.67', '1.74'] as LensIndex[]).map((label) => {
-                      const { edgeThick, centerThick, weight, displayThickMm } = calculateMetrics(prescription, label);
+                  {/* 5 Column Grid for the new indices */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+                    {(['1.5', '1.6 Spherical', '1.6 Aspheric', '1.67', '1.74'] as LensIndex[]).map((labelKey) => {
+                      const { edgeThick, centerThick, weight, displayThickMm, label } = calculateMetrics(prescription, labelKey);
                       
                       return (
-                        <div key={label} className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow">
-                          <span className="text-base md:text-lg font-black text-slate-800 mb-4 md:mb-6 tracking-widest uppercase">INDEX {label}</span>
+                        <div key={labelKey} className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow">
+                          <span className="text-sm md:text-base font-black text-slate-800 mb-4 md:mb-6 tracking-widest uppercase whitespace-nowrap">INDEX {label}</span>
                           
                           <div className="w-full h-40 md:h-64 flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 shadow-inner overflow-hidden">
                             <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible p-2">
@@ -488,14 +502,14 @@ const LensThicknessVisualiser = () => {
 
                           <div className="w-full mt-6 md:mt-8 space-y-3 md:space-y-4">
                             <div className="flex justify-between items-baseline border-b border-gray-100 pb-2 md:pb-3">
-                              <span className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-tighter">Max Thickness</span>
-                              <span className="text-base md:text-lg font-black text-slate-800">
+                              <span className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Max Thickness</span>
+                              <span className="text-sm md:text-base font-black text-slate-800">
                                 {prescription === 0 ? "2.0mm" : `${displayThickMm.toFixed(1)}mm`}
                               </span>
                             </div>
                             <div className="flex justify-between items-baseline border-b border-gray-100 pb-2 md:pb-3">
-                              <span className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-tighter">Est. Weight</span>
-                              <span className="text-base md:text-lg font-black text-slate-800">
+                              <span className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Est. Weight</span>
+                              <span className="text-sm md:text-base font-black text-slate-800">
                                 {weight}g
                               </span>
                             </div>
@@ -575,9 +589,32 @@ export default function App() {
                   <TableCell isSelected={lensType === 'Individual Varifocal'} onClick={() => setLensType('Individual Varifocal')}>Individual Varifocal</TableCell>
                 </tr>
                 <tr className="border-b-2 border-gray-100">
-                  <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] whitespace-nowrap">Index</th>
+                  <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] whitespace-nowrap align-middle">Index</th>
                   <TableCell isSelected={lensIndex === '1.5'} onClick={() => setLensIndex('1.5')}>1.5<br/><span className="text-[8px] md:text-[9px] uppercase opacity-50 font-bold">Standard</span></TableCell>
-                  <TableCell isSelected={lensIndex === '1.6'} onClick={() => setLensIndex('1.6')}>1.6<br/><span className="text-[8px] md:text-[9px] uppercase opacity-50 font-bold">Thin</span></TableCell>
+                  
+                  <td className="p-0 border border-gray-300 align-top">
+                    <div className="flex flex-col h-full w-full min-h-[64px] md:min-h-[80px]">
+                      <div 
+                        onClick={() => setLensIndex('1.6 Spherical')}
+                        className={`flex-1 flex flex-col justify-center items-center py-1.5 px-2 border-b border-gray-300 cursor-pointer transition-colors ${
+                          lensIndex === '1.6 Spherical' ? 'bg-[#3f9185] text-white font-bold shadow-inner' : 'bg-white text-gray-700 hover:bg-[#3f9185]/10'
+                        }`}
+                      >
+                        <span className="text-xs sm:text-sm md:text-base leading-none">1.6</span>
+                        <span className="text-[8px] md:text-[9px] uppercase opacity-50 font-bold mt-1">Thin (SPH)</span>
+                      </div>
+                      <div 
+                        onClick={() => setLensIndex('1.6 Aspheric')}
+                        className={`flex-1 flex flex-col justify-center items-center py-1.5 px-2 cursor-pointer transition-colors ${
+                          lensIndex === '1.6 Aspheric' ? 'bg-[#3f9185] text-white font-bold shadow-inner' : 'bg-white text-gray-700 hover:bg-[#3f9185]/10'
+                        }`}
+                      >
+                        <span className="text-xs sm:text-sm md:text-base leading-none">1.6</span>
+                        <span className="text-[8px] md:text-[9px] uppercase opacity-50 font-bold mt-1">Thin&Flat (ASP)</span>
+                      </div>
+                    </div>
+                  </td>
+
                   <TableCell isSelected={lensIndex === '1.67'} onClick={() => setLensIndex('1.67')}>1.67<br/><span className="text-[8px] md:text-[9px] uppercase opacity-50 font-bold">Extra Thin</span></TableCell>
                   <TableCell isSelected={lensIndex === '1.74'} onClick={() => setLensIndex('1.74')}>1.74<br/><span className="text-[8px] md:text-[9px] uppercase opacity-50 font-bold">Super Thin</span></TableCell>
                 </tr>
@@ -684,7 +721,7 @@ export default function App() {
           <div className="grid grid-cols-2 gap-y-2 md:gap-y-3 text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-400">
             {!isOwnFrame && <><span>Selected Frame</span><span className="text-right text-white">£{framePrice || 0}</span></>}
             <span>{lensType} Design</span><span className="text-right text-white">£{lensBaseCost}</span>
-            <span>Index {lensIndex} Material</span><span className="text-right text-white">Incl.</span>
+            <span>Index {lensIndex.replace('Spherical', '(Thin)').replace('Aspheric', '(Thin & Flat)')} Material</span><span className="text-right text-white">Incl.</span>
             {coatingCost > 0 && <><span>{coating} Coating</span><span className="text-right text-white">£{coatingCost}</span></>}
             {protectionCost > 0 && <><span>Extra: {lightProtection}</span><span className="text-right text-white">£{protectionCost}</span></>}
           </div>
