@@ -529,6 +529,260 @@ const LensThicknessVisualiser = () => {
   );
 };
 
+// --- Aspheric vs Spherical Visualiser Component (SINGLE SCREEN NO-SCROLL) ---
+const AsphericDemo = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [prescription, setPrescription] = useState(4.00); 
+
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isOpen]);
+
+  const absP = Math.abs(prescription);
+  const isPlus = prescription > 0;
+
+  // DRAMATIC Cosmetic Eye Scaling 
+  const sphScale = prescription === 0 ? 1 : isPlus ? 1 + (absP * 0.15) : Math.max(0.2, 1 - (absP * 0.08));
+  const aspScale = prescription === 0 ? 1 : isPlus ? 1 + (absP * 0.03) : Math.max(0.7, 1 - (absP * 0.02));
+
+  // Image Magnification Scale
+  const sphImgScale = Math.max(1, isPlus ? 1 + (absP * 0.1) : 1.5 - (absP * 0.05));
+  const aspImgScale = Math.max(1, isPlus ? 1 + (absP * 0.02) : 1.1 - (absP * 0.01));
+
+  // OPTICAL CLARITY BLUR 
+  const sphBlur = absP * 1.5; 
+  const aspBlur = absP * 0.15; 
+
+  // Profile Thickness Paths
+  const getProfilePath = (isAspheric: boolean) => {
+    if (prescription === 0) return "M 58,10 Q 58,60 58,110 L 62,110 Q 62,60 62,10 Z";
+    
+    let frontSag = isPlus ? (absP * 2.5) : (absP * 0.8);
+    let backSag = isPlus ? (absP * 0.5) : (absP * 3.0);
+    
+    if (isAspheric) {
+      frontSag *= 0.5;
+      backSag *= 0.6;
+    }
+
+    let edgeThick = isPlus ? 4 : 4 + (absP * (isAspheric ? 1.0 : 1.6));
+    let centerThick = isPlus ? 4 + (absP * (isAspheric ? 1.2 : 1.9)) : 3;
+
+    const halfThick = centerThick / 2;
+    const halfEdge = edgeThick / 2; 
+
+    return `M ${60 - halfEdge},10 
+            Q ${60 - halfThick - frontSag},60 ${60 - halfEdge},110 
+            L ${60 + halfEdge},110 
+            Q ${60 + halfThick - backSag},60 ${60 + halfEdge},10 Z`;
+  };
+
+  return (
+    <>
+      <div className="bg-slate-900 rounded-2xl p-6 md:p-8 text-white shadow-xl mb-6 md:mb-8 no-print">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h3 className="text-lg md:text-xl font-black uppercase tracking-tight text-white flex items-center gap-3">
+              <span className="bg-blue-500 text-white text-[10px] px-2 py-1 rounded uppercase tracking-widest">Premium</span>
+              Aspheric Lens Visualiser
+            </h3>
+            <p className="text-slate-400 text-xs md:text-sm font-medium mt-2">Discover why Thin & Flat (Aspheric) lenses offer superior aesthetics and optics.</p>
+          </div>
+          <button 
+            onClick={() => setIsOpen(true)} 
+            className="w-full md:w-auto px-6 md:px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-500 hover:scale-105 transition-all uppercase tracking-widest text-xs whitespace-nowrap"
+          >
+            Launch Aspheric Demo
+          </button>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md">
+          {/* STRICT HEIGHT CONTAINER: max-h-[98vh] and flex-col guarantees it fits the screen */}
+          <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl h-[98vh] max-h-[900px] flex flex-col relative border-4 border-blue-500 overflow-hidden">
+            
+            {/* Header (Fixed) */}
+            <div className="shrink-0 bg-white border-b border-gray-200 p-3 sm:p-4 md:p-6 flex justify-between items-center z-20">
+              <div>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tight leading-none">Spherical vs Aspheric</h2>
+                <p className="text-slate-500 font-medium text-[9px] sm:text-xs md:text-sm mt-1 hidden sm:block">See the difference in cosmetic appearance, physical profile, and optical clarity.</p>
+              </div>
+              <button onClick={() => setIsOpen(false)} className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-red-500 transition-colors text-lg sm:text-xl">✕</button>
+            </div>
+
+            {/* Body (Flexible, NO overflow-y-auto so it literally can't scroll) */}
+            <div className="flex-1 flex flex-col p-2 sm:p-4 gap-2 sm:gap-4 overflow-hidden">
+              
+              {/* Prescription Slider (Shrinks to fit) */}
+              <div className="shrink-0 bg-white p-3 sm:p-4 md:p-5 rounded-xl border-2 border-blue-100 shadow-sm flex flex-col justify-center">
+                <div className="flex justify-between items-center mb-2 sm:mb-4">
+                  <span className="text-[9px] sm:text-xs font-black text-gray-500 uppercase tracking-widest">Select Prescription</span>
+                  <span className={`text-lg sm:text-xl md:text-3xl font-mono font-black px-3 py-1 sm:py-1.5 md:py-2 rounded-lg border-2 shadow-inner leading-none ${prescription > 0 ? 'text-blue-600 border-blue-200 bg-blue-50' : prescription < 0 ? 'text-red-500 border-red-200 bg-red-50' : 'text-gray-500 border-gray-200 bg-gray-50'}`}>
+                    {prescription > 0 ? '+' : ''}{prescription.toFixed(2)}
+                  </span>
+                </div>
+                <input 
+                  type="range" min="-10" max="8" step="0.25" value={prescription} 
+                  onChange={(e) => setPrescription(parseFloat(e.target.value))} 
+                  className="w-full h-2 sm:h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" 
+                />
+                <div className="flex justify-between text-[8px] sm:text-[10px] font-black text-gray-400 mt-2 sm:mt-3 uppercase tracking-widest">
+                  <span>High Minus (-10)</span>
+                  <span>Plano (0.00)</span>
+                  <span>High Plus (+8)</span>
+                </div>
+              </div>
+
+              {/* Cards Container (Expands to fill remaining space) */}
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 min-h-0">
+                
+                {/* 1.6 SPHERICAL COLUMN */}
+                <div className="bg-white rounded-xl p-3 sm:p-4 md:p-6 border-2 border-gray-200 shadow-md flex flex-col min-h-0">
+                  <div className="text-center shrink-0 mb-2 sm:mb-3">
+                    <h4 className="text-base sm:text-lg md:text-xl font-black text-slate-800 uppercase tracking-tighter leading-none">1.6 Spherical</h4>
+                    <span className="text-[8px] sm:text-[9px] font-bold text-gray-400 uppercase tracking-widest">Standard Curve Design</span>
+                  </div>
+
+                  {/* 3 Visuals squeezed into one row to save vertical space */}
+                  <div className="flex-1 grid grid-cols-3 gap-2 min-h-0 w-full">
+                    
+                    {/* Cosmetics */}
+                    <div className="flex flex-col rounded-lg bg-gray-50 border border-gray-200 overflow-hidden relative items-center justify-between p-1 sm:p-2 min-h-0">
+                      <span className="text-[7px] sm:text-[8px] font-black uppercase text-gray-400 tracking-widest z-20 mt-1">Cosmetics</span>
+                      <div className="w-[80%] aspect-[3/2] border-2 border-slate-800 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner relative z-10 my-1">
+                        <div className="transition-transform duration-700 ease-out flex items-center justify-center h-full w-full" style={{ transform: `scale(${sphScale})` }}>
+                          <svg viewBox="0 0 100 100" className="w-[60%] h-[60%] text-blue-900 drop-shadow-sm">
+                            <path fill="currentColor" d="M50,20 C20,20 0,50 0,50 C0,50 20,80 50,80 C80,80 100,50 100,50 C100,50 80,20 50,20 Z M50,70 C38.954,70 30,61.046 30,50 C30,38.954 38.954,30 50,30 C61.046,30 70,38.954 70,50 C70,61.046 61.046,70 50,70 Z M50,40 C44.477,40 40,44.477 40,50 C40,55.523 44.477,60 50,60 C55.523,60 60,55.523 60,50 C60,44.477 55.523,40 50,40 Z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <span className="text-[7px] sm:text-[9px] font-bold text-red-500 uppercase tracking-tighter text-center leading-tight mb-1">
+                        {prescription === 0 ? "Normal" : "Distorted Eye"}
+                      </span>
+                    </div>
+
+                    {/* Profile */}
+                    <div className="flex flex-col rounded-lg bg-gray-50 border border-gray-200 overflow-hidden relative items-center justify-between p-1 sm:p-2 min-h-0">
+                      <span className="text-[7px] sm:text-[8px] font-black uppercase text-gray-400 tracking-widest z-20 mt-1">Profile</span>
+                      <div className="flex-1 flex items-center justify-center w-full my-1 min-h-0 overflow-hidden">
+                        <svg viewBox="0 0 120 120" className="w-[80%] h-full overflow-visible">
+                          <path d={getProfilePath(false)} fill="#94a3b8" fillOpacity="0.3" stroke="#475569" strokeWidth="2.5" className="transition-all duration-700 ease-out" />
+                        </svg>
+                      </div>
+                      <span className="text-[7px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-tighter text-center leading-tight mb-1">
+                        Steep Curve
+                      </span>
+                    </div>
+
+                    {/* Optics */}
+                    <div className="flex flex-col rounded-lg bg-slate-900 border border-gray-200 overflow-hidden relative items-center justify-between p-0 min-h-0">
+                      <span className="absolute top-1 bg-black/60 px-1 rounded text-white text-[7px] sm:text-[8px] font-black uppercase tracking-widest z-30">Clarity</span>
+                      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out z-10" style={{ backgroundImage: "url('/car.jpg')", transform: `scale(${sphImgScale})` }} />
+                      <div className="absolute inset-0 z-20 transition-all duration-700 ease-out" style={{ backdropFilter: `blur(${sphBlur}px)`, WebkitBackdropFilter: `blur(${sphBlur}px)`, maskImage: 'radial-gradient(ellipse at center, transparent 25%, black 100%)', WebkitMaskImage: 'radial-gradient(ellipse at center, transparent 25%, black 100%)' }}></div>
+                      <span className="absolute bottom-1 bg-white/90 px-1 rounded text-[7px] sm:text-[9px] font-bold text-red-500 uppercase tracking-tighter text-center leading-tight z-30">
+                        {prescription === 0 ? "Clear" : "Blurry Edges"}
+                      </span>
+                    </div>
+
+                  </div>
+
+                  {/* Horizontal Feature Badges (Saves vertical space) */}
+                  <div className="shrink-0 mt-3 sm:mt-4 grid grid-cols-3 gap-1 sm:gap-2">
+                    <div className="bg-gray-50 border border-gray-100 rounded p-1 sm:p-2 flex flex-col items-center justify-center text-center">
+                      <span className="text-[7px] font-black text-gray-400 uppercase">Thickness</span>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-slate-700 leading-tight">Standard</span>
+                    </div>
+                    <div className="bg-red-50 border border-red-100 rounded p-1 sm:p-2 flex flex-col items-center justify-center text-center">
+                      <span className="text-[7px] font-black text-red-400 uppercase">Vision</span>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-red-600 leading-tight">Edge Blur</span>
+                    </div>
+                    <div className="bg-red-50 border border-red-100 rounded p-1 sm:p-2 flex flex-col items-center justify-center text-center">
+                      <span className="text-[7px] font-black text-red-400 uppercase">Aesthetic</span>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-red-600 leading-tight">Eye Distortion</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 1.6 ASPHERIC COLUMN */}
+                <div className="bg-blue-50 rounded-xl p-3 sm:p-4 md:p-6 border-2 sm:border-4 border-blue-500 shadow-xl flex flex-col min-h-0 relative">
+                  <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] sm:text-[10px] font-black px-2 sm:px-4 py-1 uppercase tracking-widest rounded-bl-lg z-30">Premium</div>
+                  
+                  <div className="text-center shrink-0 mb-2 sm:mb-3">
+                    <h4 className="text-base sm:text-lg md:text-xl font-black text-blue-800 uppercase tracking-tighter leading-none">1.6 Aspheric</h4>
+                    <span className="text-[8px] sm:text-[9px] font-bold text-blue-500 uppercase tracking-widest">Thin & Flat Design</span>
+                  </div>
+
+                  {/* 3 Visuals */}
+                  <div className="flex-1 grid grid-cols-3 gap-2 min-h-0 w-full">
+                    
+                    {/* Cosmetics */}
+                    <div className="flex flex-col rounded-lg bg-white border border-blue-200 overflow-hidden relative items-center justify-between p-1 sm:p-2 min-h-0 shadow-sm">
+                      <span className="text-[7px] sm:text-[8px] font-black uppercase text-blue-400 tracking-widest z-20 mt-1">Cosmetics</span>
+                      <div className="w-[80%] aspect-[3/2] border-2 border-blue-900 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner relative z-10 my-1">
+                        <div className="transition-transform duration-700 ease-out flex items-center justify-center h-full w-full" style={{ transform: `scale(${aspScale})` }}>
+                          <svg viewBox="0 0 100 100" className="w-[60%] h-[60%] text-blue-600 drop-shadow-sm">
+                            <path fill="currentColor" d="M50,20 C20,20 0,50 0,50 C0,50 20,80 50,80 C80,80 100,50 100,50 C100,50 80,20 50,20 Z M50,70 C38.954,70 30,61.046 30,50 C30,38.954 38.954,30 50,30 C61.046,30 70,38.954 70,50 C70,61.046 61.046,70 50,70 Z M50,40 C44.477,40 40,44.477 40,50 C40,55.523 44.477,60 50,60 C55.523,60 60,55.523 60,50 C60,44.477 55.523,40 50,40 Z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <span className="text-[7px] sm:text-[9px] font-bold text-emerald-600 uppercase tracking-tighter text-center leading-tight mb-1">
+                        Natural Eye
+                      </span>
+                    </div>
+
+                    {/* Profile */}
+                    <div className="flex flex-col rounded-lg bg-white border border-blue-200 overflow-hidden relative items-center justify-between p-1 sm:p-2 min-h-0 shadow-sm">
+                      <span className="text-[7px] sm:text-[8px] font-black uppercase text-blue-400 tracking-widest z-20 mt-1">Profile</span>
+                      <div className="flex-1 flex items-center justify-center w-full my-1 min-h-0 overflow-hidden">
+                        <svg viewBox="0 0 120 120" className="w-[80%] h-full overflow-visible">
+                          <path d={getProfilePath(true)} fill="#3b82f6" fillOpacity="0.3" stroke="#2563eb" strokeWidth="2.5" className="transition-all duration-700 ease-out" />
+                        </svg>
+                      </div>
+                      <span className="text-[7px] sm:text-[9px] font-bold text-emerald-600 uppercase tracking-tighter text-center leading-tight mb-1">
+                        Flatter Curve
+                      </span>
+                    </div>
+
+                    {/* Optics */}
+                    <div className="flex flex-col rounded-lg bg-slate-900 border border-blue-200 overflow-hidden relative items-center justify-between p-0 min-h-0 shadow-sm">
+                      <span className="absolute top-1 bg-blue-900/80 px-1 rounded text-white text-[7px] sm:text-[8px] font-black uppercase tracking-widest z-30">Clarity</span>
+                      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out z-10" style={{ backgroundImage: "url('/car.jpg')", transform: `scale(${aspImgScale})` }} />
+                      <div className="absolute inset-0 z-20 transition-all duration-700 ease-out" style={{ backdropFilter: `blur(${aspBlur}px)`, WebkitBackdropFilter: `blur(${aspBlur}px)`, maskImage: 'radial-gradient(ellipse at center, transparent 25%, black 100%)', WebkitMaskImage: 'radial-gradient(ellipse at center, transparent 25%, black 100%)' }}></div>
+                      <span className="absolute bottom-1 bg-white/95 px-1 rounded text-[7px] sm:text-[9px] font-bold text-emerald-600 uppercase tracking-tighter text-center leading-tight z-30">
+                        Crisp Edges
+                      </span>
+                    </div>
+
+                  </div>
+
+                  {/* Horizontal Feature Badges */}
+                  <div className="shrink-0 mt-3 sm:mt-4 grid grid-cols-3 gap-1 sm:gap-2">
+                    <div className="bg-emerald-50 border border-emerald-100 rounded p-1 sm:p-2 flex flex-col items-center justify-center text-center">
+                      <span className="text-[7px] font-black text-emerald-500 uppercase">Thickness</span>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-emerald-700 leading-tight">Visibly Thinner</span>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-100 rounded p-1 sm:p-2 flex flex-col items-center justify-center text-center">
+                      <span className="text-[7px] font-black text-emerald-500 uppercase">Vision</span>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-emerald-700 leading-tight">Edge to Edge</span>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-100 rounded p-1 sm:p-2 flex flex-col items-center justify-center text-center">
+                      <span className="text-[7px] font-black text-emerald-500 uppercase">Aesthetic</span>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-emerald-700 leading-tight">Natural Look</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default function App() {
   const [customerName, setCustomerName] = useState('');
@@ -636,6 +890,7 @@ export default function App() {
           </div>
 
           <LensThicknessVisualiser />
+          <AsphericDemo />
 
           {lensType.includes('Varifocal') && (
             <div className="bg-slate-900 rounded-2xl p-6 md:p-8 text-white shadow-xl">
