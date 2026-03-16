@@ -547,9 +547,20 @@ const AsphericDemo = () => {
   const sphScale = prescription === 0 ? 1 : isPlus ? 1 + (absP * 0.15) : Math.max(0.2, 1 - (absP * 0.08));
   const aspScale = prescription === 0 ? 1 : isPlus ? 1 + (absP * 0.03) : Math.max(0.7, 1 - (absP * 0.02));
 
-  // Image Magnification Scale
-  const sphImgScale = Math.max(1, isPlus ? 1 + (absP * 0.1) : 1.5 - (absP * 0.05));
-  const aspImgScale = Math.max(1, isPlus ? 1 + (absP * 0.02) : 1.1 - (absP * 0.01));
+  // Image Magnification Scale (Baseline of 1.3 allows minus lenses to 'zoom out' without showing borders)
+  const baseImgScale = 1.3;
+  
+  const sphImgScale = prescription === 0 
+    ? baseImgScale 
+    : isPlus 
+      ? baseImgScale + (absP * 0.12) 
+      : Math.max(1.0, baseImgScale - (absP * 0.03));
+      
+  const aspImgScale = prescription === 0 
+    ? baseImgScale 
+    : isPlus 
+      ? baseImgScale + (absP * 0.03) 
+      : Math.max(1.0, baseImgScale - (absP * 0.01));
 
   // OPTICAL CLARITY BLUR 
   const sphBlur = absP * 1.5; 
