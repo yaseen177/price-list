@@ -62,18 +62,20 @@ const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean)
     const ownPrices = { '1.5': 59, '1.6 Spherical': 94, '1.6 Aspheric': 124, '1.67': 159, '1.74': 208 };
     return isOwnFrame ? ownPrices[index] : newPrices[index];
   }
-  const baseVarifocal = type === 'Basic Varifocal' ? { new: [119, 184, 214, 264], own: [139, 204, 234, 284] } :
-                        type === 'Elite Varifocal' ? { new: [139, 234, 264, 314], own: [159, 254, 284, 334] } :
-                        { new: [199, 294, 314, 374], own: [219, 314, 334, 394] };
+  // Varifocal base prices bumped by £40 to include MAR standard
+  const baseVarifocal = type === 'Basic Varifocal' ? { new: [159, 224, 254, 304], own: [179, 244, 274, 324] } :
+                        type === 'Elite Varifocal' ? { new: [179, 274, 304, 354], own: [199, 294, 324, 374] } :
+                        { new: [239, 334, 354, 414], own: [259, 354, 374, 434] };
   
   const idxMap = { '1.5': 0, '1.6 Spherical': 1, '1.6 Aspheric': 1, '1.67': 2, '1.74': 3 };
   return isOwnFrame ? baseVarifocal.own[idxMap[index]] : baseVarifocal.new[idxMap[index]];
 };
 
-const getCoatingPrice = (coating: Coating): number => {
+const getCoatingPrice = (coating: Coating, type: LensType): number => {
+  const isVarifocal = type.includes('Varifocal');
   switch (coating) {
-    case 'MAR': return 25;
-    case 'Blue Filter': return 45;
+    case 'MAR': return isVarifocal ? 0 : 25;
+    case 'Blue Filter': return isVarifocal ? 20 : 45; // If Varifocal, MAR is standard, making Blue Filter a £20 upgrade
     default: return 0;
   }
 };
@@ -807,11 +809,18 @@ export default function App() {
   const [readingAdd, setReadingAdd] = useState(2.00);
 
   const lensBaseCost = useMemo(() => getLensBasePrice(lensType, lensIndex, isOwnFrame), [lensType, lensIndex, isOwnFrame]);
-  const coatingCost = useMemo(() => getCoatingPrice(coating), [coating]);
+  const coatingCost = useMemo(() => getCoatingPrice(coating, lensType), [coating, lensType]);
   const protectionCost = useMemo(() => getLightProtectionPrice(lightProtection, lensType), [lightProtection, lensType]);
   const totalCost = (isOwnFrame ? 0 : (framePrice || 0)) + lensBaseCost + coatingCost + protectionCost;
 
-  // --- PDF/Print Handler ---
+  useEffect(() => {
+    if (lensType.includes('Varifocal') && coating === 'None') {
+      setCoating('MAR');
+    }
+  }, [lensType, coating]);
+
+  const isVarifocal = lensType.includes('Varifocal');
+
   const handleSaveQuote = () => {
     window.print();
   };
@@ -844,11 +853,11 @@ export default function App() {
           </div>
 
           <div className="overflow-x-auto rounded-2xl border-2 border-gray-100 shadow-sm w-full">
-            <table className="w-full min-w-[600px] border-collapse">
+            <table className="w-full min-w-[650px] border-collapse">
               <tbody>
                 <tr className="border-b-2 border-gray-100">
                   <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 w-1/5 tracking-[0.2em] whitespace-nowrap">Lens Type</th>
-                  <TableCell isSelected={lensType === 'Single Vision'} onClick={() => { setLensType('Single Vision'); setShowDemo(false); }}>Single Vision</TableCell>
+                  <TableCell isSelected={lensType === 'Single Vision'} onClick={() => { setLensType('Single Vision'); setShowDemo(false); }} colSpan={2}>Single Vision</TableCell>
                   <TableCell isSelected={lensType === 'Basic Varifocal'} onClick={() => setLensType('Basic Varifocal')}>Basic Varifocal</TableCell>
                   <TableCell isSelected={lensType === 'Elite Varifocal'} onClick={() => setLensType('Elite Varifocal')}>Elite Varifocal</TableCell>
                   <TableCell isSelected={lensType === 'Individual Varifocal'} onClick={() => setLensType('Individual Varifocal')}>Individual Varifocal</TableCell>
@@ -885,13 +894,27 @@ export default function App() {
                 </tr>
                 <tr className="border-b-2 border-gray-100">
                   <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] whitespace-nowrap">Coating</th>
-                  <TableCell isSelected={coating === 'None'} onClick={() => setCoating('None')} colSpan={2}>Uncoated</TableCell>
-                  <TableCell isSelected={coating === 'MAR'} onClick={() => setCoating('MAR')}>MAR (+£25)</TableCell>
-                  <TableCell isSelected={coating === 'Blue Filter'} onClick={() => setCoating('Blue Filter')}>Blue Filter (+£45)</TableCell>
+                  {!isVarifocal && (
+                    <TableCell isSelected={coating === 'None'} onClick={() => setCoating('None')} colSpan={3}>Uncoated</TableCell>
+                  )}
+                  <TableCell 
+                    isSelected={coating === 'MAR'} 
+                    onClick={() => setCoating('MAR')} 
+                    colSpan={isVarifocal ? 3 : 1}
+                  >
+                    {isVarifocal ? 'MAR (Included)' : 'MAR (+£25)'}
+                  </TableCell>
+                  <TableCell 
+                    isSelected={coating === 'Blue Filter'} 
+                    onClick={() => setCoating('Blue Filter')} 
+                    colSpan={isVarifocal ? 2 : 1}
+                  >
+                    {isVarifocal ? 'Blue Filter (+£20)' : 'Blue Filter (+£45)'}
+                  </TableCell>
                 </tr>
                 <tr>
                   <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] whitespace-nowrap">Extras</th>
-                  <TableCell isSelected={lightProtection === 'None'} onClick={() => setLightProtection('None')}>Clear</TableCell>
+                  <TableCell isSelected={lightProtection === 'None'} onClick={() => setLightProtection('None')} colSpan={2}>Clear</TableCell>
                   <TableCell isSelected={lightProtection === 'Transitions'} onClick={() => setLightProtection('Transitions')}>Transitions (+£{lensType === 'Single Vision' ? 45 : 69})</TableCell>
                   <TableCell isSelected={lightProtection === 'XtrActive Transitions'} onClick={() => setLightProtection('XtrActive Transitions')}>XtrActive (+£65)</TableCell>
                   <TableCell isSelected={lightProtection === 'Solid Tint'} onClick={() => setLightProtection('Solid Tint')}>Tint (+£25)</TableCell>
@@ -988,7 +1011,7 @@ export default function App() {
             {!isOwnFrame && <><span>Selected Frame</span><span className="text-right text-white">£{framePrice || 0}</span></>}
             <span>{lensType} Design</span><span className="text-right text-white">£{lensBaseCost}</span>
             <span>Index {lensIndex.replace('Spherical', '(Thin)').replace('Aspheric', '(Thin & Flat)')} Material</span><span className="text-right text-white">Incl.</span>
-            {coatingCost > 0 && <><span>{coating} Coating</span><span className="text-right text-white">£{coatingCost}</span></>}
+            {coating !== 'None' && <><span>{coating} Coating</span><span className="text-right text-white">{coatingCost > 0 ? `£${coatingCost}` : 'Incl.'}</span></>}
             {protectionCost > 0 && <><span>Extra: {lightProtection}</span><span className="text-right text-white">£{protectionCost}</span></>}
           </div>
           <div className="mt-6 sm:mt-10 pt-6 sm:pt-8 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
