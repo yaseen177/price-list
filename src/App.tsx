@@ -74,7 +74,7 @@ const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean)
 const getCoatingPrice = (coating: Coating, type: LensType): number => {
   const isVarifocal = type.includes('Varifocal');
   switch (coating) {
-    case 'MAR': return isVarifocal ? 0 : 25;
+    case 'MAR': return isVarifocal ? 0 : 35;
     case 'Blue Filter': return isVarifocal ? 20 : 45; // If Varifocal, MAR is standard, making Blue Filter a £20 upgrade
     default: return 0;
   }
@@ -902,7 +902,7 @@ export default function App() {
                     onClick={() => setCoating('MAR')} 
                     colSpan={isVarifocal ? 3 : 1}
                   >
-                    {isVarifocal ? 'MAR (Included)' : 'MAR (+£25)'}
+                    {isVarifocal ? 'MAR (Included)' : 'MAR (+£35)'}
                   </TableCell>
                   <TableCell 
                     isSelected={coating === 'Blue Filter'} 
