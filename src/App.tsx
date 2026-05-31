@@ -58,8 +58,8 @@ type LightProtection = 'None' | 'Transitions' | 'XtrActive Transitions' | 'Solid
 // --- Pricing Logic ---
 const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean): number => {
   if (type === 'Single Vision') {
-    const newPrices = { '1.5': 0, '1.6 Spherical': 35, '1.6 Aspheric': 65, '1.67': 100, '1.74': 149 };
-    const ownPrices = { '1.5': 59, '1.6 Spherical': 94, '1.6 Aspheric': 124, '1.67': 159, '1.74': 208 };
+    const newPrices = { '1.5': 0, '1.6 Spherical': 45, '1.6 Aspheric': 65, '1.67': 100, '1.74': 149 };
+    const ownPrices = { '1.5': 59, '1.6 Spherical': 104, '1.6 Aspheric': 124, '1.67': 159, '1.74': 208 };
     return isOwnFrame ? ownPrices[index] : newPrices[index];
   }
   // Varifocal base prices bumped by £40 to include MAR standard
@@ -74,16 +74,16 @@ const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean)
 const getCoatingPrice = (coating: Coating, type: LensType): number => {
   const isVarifocal = type.includes('Varifocal');
   switch (coating) {
-    case 'MAR': return isVarifocal ? 0 : 25;
+    case 'MAR': return isVarifocal ? 0 : 35;
     case 'Blue Filter': return isVarifocal ? 20 : 45; // If Varifocal, MAR is standard, making Blue Filter a £20 upgrade
     default: return 0;
   }
 };
 
 const getLightProtectionPrice = (protection: LightProtection, type: LensType): number => {
-  if (protection === 'Transitions') return type === 'Single Vision' ? 45 : 69; 
+  if (protection === 'Transitions') return type === 'Single Vision' ? 49 : 69; 
   if (protection === 'XtrActive Transitions') return 65;
-  if (protection === 'Solid Tint') return 25;
+  if (protection === 'Solid Tint') return 35;
   return 0;
 };
 
@@ -902,7 +902,7 @@ export default function App() {
                     onClick={() => setCoating('MAR')} 
                     colSpan={isVarifocal ? 3 : 1}
                   >
-                    {isVarifocal ? 'MAR (Included)' : 'MAR (+£25)'}
+                    {isVarifocal ? 'MAR (Included)' : 'MAR (+£35)'}
                   </TableCell>
                   <TableCell 
                     isSelected={coating === 'Blue Filter'} 
@@ -915,9 +915,9 @@ export default function App() {
                 <tr>
                   <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] whitespace-nowrap">Extras</th>
                   <TableCell isSelected={lightProtection === 'None'} onClick={() => setLightProtection('None')} colSpan={2}>Clear</TableCell>
-                  <TableCell isSelected={lightProtection === 'Transitions'} onClick={() => setLightProtection('Transitions')}>Transitions (+£{lensType === 'Single Vision' ? 45 : 69})</TableCell>
+                  <TableCell isSelected={lightProtection === 'Transitions'} onClick={() => setLightProtection('Transitions')}>Transitions (+£{lensType === 'Single Vision' ? 49 : 69})</TableCell>
                   <TableCell isSelected={lightProtection === 'XtrActive Transitions'} onClick={() => setLightProtection('XtrActive Transitions')}>XtrActive (+£65)</TableCell>
-                  <TableCell isSelected={lightProtection === 'Solid Tint'} onClick={() => setLightProtection('Solid Tint')}>Tint (+£25)</TableCell>
+                  <TableCell isSelected={lightProtection === 'Solid Tint'} onClick={() => setLightProtection('Solid Tint')}>Tint (+£35)</TableCell>
                 </tr>
               </tbody>
             </table>
