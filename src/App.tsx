@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from './firebase'; // <-- Ensure this points to the file you just created
+import { db } from './firebase'; 
 
 // --- Custom Styles for PDF Export ---
 const printStyles = `
@@ -57,7 +57,7 @@ type LensIndex = '1.5' | '1.6 Spherical' | '1.6 Aspheric' | '1.67' | '1.74';
 type Coating = 'None' | 'MAR' | 'Blue Filter';
 type LightProtection = 'None' | 'Transitions' | 'XtrActive Transitions' | 'Solid Tint';
 
-// --- Pricing Logic ---
+// --- Pricing Logic (Dynamic from Firebase) ---
 const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean, dbPricing: any): number => {
   if (!dbPricing) return 0;
   
@@ -145,7 +145,6 @@ const VarifocalDemo = ({ readingAdd }: { readingAdd: number }) => {
   );
 };
 
-
 // --- Balance Scale Visualiser Component ---
 const BalanceScale = ({ 
   weightA, weightB, pathA, pathB, thickA, thickB, thinnerLens, lighterLens, thickDiffText, weightDiffText 
@@ -159,8 +158,6 @@ const BalanceScale = ({
 
   return (
     <div className="flex flex-col items-center justify-end w-full h-[350px] sm:h-[400px] lg:h-[480px] relative bg-white border-2 border-gray-100 rounded-3xl shadow-sm pb-16 sm:pb-24 mt-4">
-      
-      {/* Dynamic Results Header */}
       <div className="absolute top-4 sm:top-6 left-0 right-0 flex flex-col items-center px-2 sm:px-4 text-center z-20">
         <h4 className="text-[10px] sm:text-xs font-black uppercase text-gray-400 tracking-[0.2em] mb-2 sm:mb-3">Live Result</h4>
         <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
@@ -177,10 +174,7 @@ const BalanceScale = ({
         </div>
       </div>
       
-      {/* The Main Beam */}
       <div className="w-[200px] sm:w-[280px] md:w-[480px] h-2 sm:h-3 bg-slate-800 rounded-full relative transition-transform duration-1000 ease-out z-10" style={{ transform: `rotate(${angle}deg)` }}>
-        
-        {/* === LEFT SIDE === */}
         <div className="absolute left-0 bottom-full w-24 sm:w-32 md:w-36 -translate-x-1/2 transition-transform duration-1000 ease-out origin-bottom flex flex-col items-center" style={{ transform: `rotate(${-angle}deg)` }}>
           <div className="w-full h-20 sm:h-32 md:h-40 flex items-end justify-center -mb-1 sm:-mb-2 z-10">
             <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible drop-shadow-xl">
@@ -199,7 +193,6 @@ const BalanceScale = ({
           </div>
         </div>
 
-        {/* === RIGHT SIDE === */}
         <div className="absolute right-0 bottom-full w-24 sm:w-32 md:w-36 translate-x-1/2 transition-transform duration-1000 ease-out origin-bottom flex flex-col items-center" style={{ transform: `rotate(${-angle}deg)` }}>
           <div className="w-full h-20 sm:h-32 md:h-40 flex items-end justify-center -mb-1 sm:-mb-2 z-10">
             <svg viewBox="0 0 120 120" className="w-full h-full overflow-visible drop-shadow-xl">
@@ -218,17 +211,14 @@ const BalanceScale = ({
           </div>
         </div>
 
-        {/* Center Pivot Point */}
         <div className="absolute left-1/2 top-1/2 w-4 sm:w-6 h-4 sm:h-6 bg-slate-200 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-20 border-[3px] sm:border-[4px] border-slate-800 shadow"></div>
       </div>
       
-      {/* Fulcrum Base */}
       <div className="w-0 h-0 border-l-[20px] sm:border-l-[35px] border-l-transparent border-r-[20px] sm:border-r-[35px] border-r-transparent border-b-[50px] sm:border-b-[80px] border-b-slate-300 z-0 -mt-1 sm:-mt-2"></div>
       <div className="w-32 sm:w-48 h-2 sm:h-4 bg-slate-200 rounded-full mt-0 shadow-inner"></div>
     </div>
   );
 };
-
 
 // --- UNIFIED Lens Thickness & Comparison Modal ---
 const LensThicknessVisualiser = () => {
@@ -257,7 +247,6 @@ const LensThicknessVisualiser = () => {
     const absP = Math.abs(p);
     const isPlus = p > 0;
     
-    // Aspheric visual multiplier physically flattens the drawing curve compared to Spherical
     let visualDrama = 1;
     if (data.n < 1.55) visualDrama = 3.2;
     else if (indexLabel === '1.6 Aspheric') visualDrama = 1.6; 
@@ -265,7 +254,6 @@ const LensThicknessVisualiser = () => {
     else if (data.n < 1.7) visualDrama = 1.3;
     else visualDrama = 0.8;
     
-    // Accurate Marketing Thickness Ratios
     let thickFactor = 1.0;
     if (data.n < 1.55) thickFactor = 1.00;
     else if (indexLabel === '1.6 Aspheric') thickFactor = 0.72; 
@@ -287,7 +275,6 @@ const LensThicknessVisualiser = () => {
     }
 
     const realisticThickMm = p === 0 ? 1.5 : 1.5 + (absP * 0.85 * thickFactor);
-    
     const weightBase = 12; 
     const weightAdded = absP * 4.5 * thickFactor * (data.density / 1.32);
     const weight = p === 0 ? weightBase : Math.round(weightBase + weightAdded);
@@ -320,10 +307,8 @@ const LensThicknessVisualiser = () => {
     const baseThickness = 1.5; 
     const addedA = Math.max(0, metricsA.displayThickMm - baseThickness);
     const addedB = Math.max(0, metricsB.displayThickMm - baseThickness);
-    
     const maxAdded = Math.max(addedA, addedB);
     const diffAdded = Math.abs(addedA - addedB);
-    
     const pct = Math.round((diffAdded / maxAdded) * 100);
     return `Profile is ${pct}% Thinner`;
   };
@@ -355,10 +340,7 @@ const LensThicknessVisualiser = () => {
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm">
-          
           <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[98vh] md:max-h-[95vh] flex flex-col relative border-2 md:border-4 border-[#3f9185] overflow-hidden">
-            
-            {/* Pinned Header with Tabs */}
             <div className="shrink-0 bg-white border-b border-gray-200 p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center z-20 gap-3 md:gap-4">
               <div className="w-full md:w-auto flex justify-between items-center">
                 <div>
@@ -367,7 +349,6 @@ const LensThicknessVisualiser = () => {
                 <button onClick={() => setIsOpen(false)} className="md:hidden w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-red-500 transition-colors text-lg">✕</button>
               </div>
 
-              {/* View Toggle Tabs */}
               <div className="flex bg-gray-100 p-1.5 rounded-xl border border-gray-200 w-full md:w-auto overflow-x-auto">
                 <button 
                   onClick={() => setActiveTab('compare')}
@@ -386,15 +367,10 @@ const LensThicknessVisualiser = () => {
               <button onClick={() => setIsOpen(false)} className="hidden md:flex w-10 h-10 bg-gray-100 rounded-full items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-red-500 transition-colors text-xl">✕</button>
             </div>
 
-            {/* Scrollable Content Body */}
             <div className="flex-1 overflow-y-auto p-4 md:p-8">
-              
               {activeTab === 'compare' ? (
-                /* --- HEAD TO HEAD VIEW --- */
                 <div className="flex flex-col lg:flex-row gap-6 md:gap-8">
-                  {/* Left Column: Controls */}
                   <div className="w-full lg:w-[35%] flex flex-col gap-4 sm:gap-6 shrink-0">
-                    
                     <div className="bg-white p-4 md:p-6 rounded-2xl border-2 border-[#3f9185]/30 shadow-md flex flex-col">
                       <div className="flex justify-between items-center mb-4 md:mb-6">
                         <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-widest">Prescription</span>
@@ -445,7 +421,6 @@ const LensThicknessVisualiser = () => {
                     </div>
                   </div>
 
-                  {/* Right Column: Balance Scale */}
                   <div className="w-full lg:w-[65%] flex items-center justify-center">
                     <BalanceScale 
                       weightA={metricsA.weight} 
@@ -462,7 +437,6 @@ const LensThicknessVisualiser = () => {
                   </div>
                 </div>
               ) : (
-                /* --- ALL INDICES GRID VIEW --- */
                 <div className="flex flex-col">
                   <div className="mb-6 md:mb-10 bg-white p-4 md:p-6 rounded-2xl border border-gray-200 shadow-sm">
                     <div className="flex justify-between items-center mb-4 md:mb-6">
@@ -483,7 +457,6 @@ const LensThicknessVisualiser = () => {
                     </div>
                   </div>
 
-                  {/* 5 Column Grid for the new indices */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
                     {(['1.5', '1.6 Spherical', '1.6 Aspheric', '1.67', '1.74'] as LensIndex[]).map((labelKey) => {
                       const { edgeThick, centerThick, weight, displayThickMm, label } = calculateMetrics(prescription, labelKey);
@@ -526,7 +499,6 @@ const LensThicknessVisualiser = () => {
                   </div>
                 </div>
               )}
-
             </div>
           </div>
         </div>
@@ -549,30 +521,16 @@ const AsphericDemo = () => {
   const absP = Math.abs(prescription);
   const isPlus = prescription > 0;
 
-  // DRAMATIC Cosmetic Eye Scaling 
   const sphScale = prescription === 0 ? 1 : isPlus ? 1 + (absP * 0.15) : Math.max(0.2, 1 - (absP * 0.08));
   const aspScale = prescription === 0 ? 1 : isPlus ? 1 + (absP * 0.03) : Math.max(0.7, 1 - (absP * 0.02));
 
-  // Image Magnification Scale (Baseline of 1.3 allows minus lenses to 'zoom out' without showing borders)
   const baseImgScale = 1.3;
-  
-  const sphImgScale = prescription === 0 
-    ? baseImgScale 
-    : isPlus 
-      ? baseImgScale + (absP * 0.12) 
-      : Math.max(1.0, baseImgScale - (absP * 0.03));
-      
-  const aspImgScale = prescription === 0 
-    ? baseImgScale 
-    : isPlus 
-      ? baseImgScale + (absP * 0.03) 
-      : Math.max(1.0, baseImgScale - (absP * 0.01));
+  const sphImgScale = prescription === 0 ? baseImgScale : isPlus ? baseImgScale + (absP * 0.12) : Math.max(1.0, baseImgScale - (absP * 0.03));
+  const aspImgScale = prescription === 0 ? baseImgScale : isPlus ? baseImgScale + (absP * 0.03) : Math.max(1.0, baseImgScale - (absP * 0.01));
 
-  // OPTICAL CLARITY BLUR 
   const sphBlur = absP * 1.5; 
   const aspBlur = absP * 0.15; 
 
-  // Profile Thickness Paths
   const getProfilePath = (isAspheric: boolean) => {
     if (prescription === 0) return "M 58,10 Q 58,60 58,110 L 62,110 Q 62,60 62,10 Z";
     
@@ -590,10 +548,7 @@ const AsphericDemo = () => {
     const halfThick = centerThick / 2;
     const halfEdge = edgeThick / 2; 
 
-    return `M ${60 - halfEdge},10 
-            Q ${60 - halfThick - frontSag},60 ${60 - halfEdge},110 
-            L ${60 + halfEdge},110 
-            Q ${60 + halfThick - backSag},60 ${60 + halfEdge},10 Z`;
+    return `M ${60 - halfEdge},10 Q ${60 - halfThick - frontSag},60 ${60 - halfEdge},110 L ${60 + halfEdge},110 Q ${60 + halfThick - backSag},60 ${60 + halfEdge},10 Z`;
   };
 
   return (
@@ -618,10 +573,7 @@ const AsphericDemo = () => {
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md">
-          {/* STRICT HEIGHT CONTAINER: max-h-[98vh] and flex-col guarantees it fits the screen */}
           <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl h-[98vh] max-h-[900px] flex flex-col relative border-4 border-blue-500 overflow-hidden">
-            
-            {/* Header (Fixed) */}
             <div className="shrink-0 bg-white border-b border-gray-200 p-3 sm:p-4 md:p-6 flex justify-between items-center z-20">
               <div>
                 <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tight leading-none">Spherical vs Aspheric</h2>
@@ -630,10 +582,7 @@ const AsphericDemo = () => {
               <button onClick={() => setIsOpen(false)} className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-500 hover:bg-gray-200 hover:text-red-500 transition-colors text-lg sm:text-xl">✕</button>
             </div>
 
-            {/* Body (Flexible, NO overflow-y-auto so it literally can't scroll) */}
             <div className="flex-1 flex flex-col p-2 sm:p-4 gap-2 sm:gap-4 overflow-hidden">
-              
-              {/* Prescription Slider (Shrinks to fit) */}
               <div className="shrink-0 bg-white p-3 sm:p-4 md:p-5 rounded-xl border-2 border-blue-100 shadow-sm flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-2 sm:mb-4">
                   <span className="text-[9px] sm:text-xs font-black text-gray-500 uppercase tracking-widest">Select Prescription</span>
@@ -653,20 +602,14 @@ const AsphericDemo = () => {
                 </div>
               </div>
 
-              {/* Cards Container (Expands to fill remaining space) */}
               <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 min-h-0">
-                
-                {/* 1.6 SPHERICAL COLUMN */}
                 <div className="bg-white rounded-xl p-3 sm:p-4 md:p-6 border-2 border-gray-200 shadow-md flex flex-col min-h-0">
                   <div className="text-center shrink-0 mb-2 sm:mb-3">
                     <h4 className="text-base sm:text-lg md:text-xl font-black text-slate-800 uppercase tracking-tighter leading-none">1.6 Spherical</h4>
                     <span className="text-[8px] sm:text-[9px] font-bold text-gray-400 uppercase tracking-widest">Standard Curve Design</span>
                   </div>
 
-                  {/* 3 Visuals squeezed into one row to save vertical space */}
                   <div className="flex-1 grid grid-cols-3 gap-2 min-h-0 w-full">
-                    
-                    {/* Cosmetics */}
                     <div className="flex flex-col rounded-lg bg-gray-50 border border-gray-200 overflow-hidden relative items-center justify-between p-1 sm:p-2 min-h-0">
                       <span className="text-[7px] sm:text-[8px] font-black uppercase text-gray-400 tracking-widest z-20 mt-1">Cosmetics</span>
                       <div className="w-[80%] aspect-[3/2] border-2 border-slate-800 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner relative z-10 my-1">
@@ -681,7 +624,6 @@ const AsphericDemo = () => {
                       </span>
                     </div>
 
-                    {/* Profile */}
                     <div className="flex flex-col rounded-lg bg-gray-50 border border-gray-200 overflow-hidden relative items-center justify-between p-1 sm:p-2 min-h-0">
                       <span className="text-[7px] sm:text-[8px] font-black uppercase text-gray-400 tracking-widest z-20 mt-1">Profile</span>
                       <div className="flex-1 flex items-center justify-center w-full my-1 min-h-0 overflow-hidden">
@@ -694,7 +636,6 @@ const AsphericDemo = () => {
                       </span>
                     </div>
 
-                    {/* Optics */}
                     <div className="flex flex-col rounded-lg bg-slate-900 border border-gray-200 overflow-hidden relative items-center justify-between p-0 min-h-0">
                       <span className="absolute top-1 bg-black/60 px-1 rounded text-white text-[7px] sm:text-[8px] font-black uppercase tracking-widest z-30">Clarity</span>
                       <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out z-10" style={{ backgroundImage: "url('/car.jpg')", transform: `scale(${sphImgScale})` }} />
@@ -703,10 +644,8 @@ const AsphericDemo = () => {
                         {prescription === 0 ? "Clear" : "Blurry Edges"}
                       </span>
                     </div>
-
                   </div>
 
-                  {/* Horizontal Feature Badges (Saves vertical space) */}
                   <div className="shrink-0 mt-3 sm:mt-4 grid grid-cols-3 gap-1 sm:gap-2">
                     <div className="bg-gray-50 border border-gray-100 rounded p-1 sm:p-2 flex flex-col items-center justify-center text-center">
                       <span className="text-[7px] font-black text-gray-400 uppercase">Thickness</span>
@@ -723,7 +662,6 @@ const AsphericDemo = () => {
                   </div>
                 </div>
 
-                {/* 1.6 ASPHERIC COLUMN */}
                 <div className="bg-blue-50 rounded-xl p-3 sm:p-4 md:p-6 border-2 sm:border-4 border-blue-500 shadow-xl flex flex-col min-h-0 relative">
                   <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] sm:text-[10px] font-black px-2 sm:px-4 py-1 uppercase tracking-widest rounded-bl-lg z-30">Premium</div>
                   
@@ -732,10 +670,7 @@ const AsphericDemo = () => {
                     <span className="text-[8px] sm:text-[9px] font-bold text-blue-500 uppercase tracking-widest">Thin & Flat Design</span>
                   </div>
 
-                  {/* 3 Visuals */}
                   <div className="flex-1 grid grid-cols-3 gap-2 min-h-0 w-full">
-                    
-                    {/* Cosmetics */}
                     <div className="flex flex-col rounded-lg bg-white border border-blue-200 overflow-hidden relative items-center justify-between p-1 sm:p-2 min-h-0 shadow-sm">
                       <span className="text-[7px] sm:text-[8px] font-black uppercase text-blue-400 tracking-widest z-20 mt-1">Cosmetics</span>
                       <div className="w-[80%] aspect-[3/2] border-2 border-blue-900 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner relative z-10 my-1">
@@ -750,7 +685,6 @@ const AsphericDemo = () => {
                       </span>
                     </div>
 
-                    {/* Profile */}
                     <div className="flex flex-col rounded-lg bg-white border border-blue-200 overflow-hidden relative items-center justify-between p-1 sm:p-2 min-h-0 shadow-sm">
                       <span className="text-[7px] sm:text-[8px] font-black uppercase text-blue-400 tracking-widest z-20 mt-1">Profile</span>
                       <div className="flex-1 flex items-center justify-center w-full my-1 min-h-0 overflow-hidden">
@@ -763,7 +697,6 @@ const AsphericDemo = () => {
                       </span>
                     </div>
 
-                    {/* Optics */}
                     <div className="flex flex-col rounded-lg bg-slate-900 border border-blue-200 overflow-hidden relative items-center justify-between p-0 min-h-0 shadow-sm">
                       <span className="absolute top-1 bg-blue-900/80 px-1 rounded text-white text-[7px] sm:text-[8px] font-black uppercase tracking-widest z-30">Clarity</span>
                       <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out z-10" style={{ backgroundImage: "url('/car.jpg')", transform: `scale(${aspImgScale})` }} />
@@ -772,10 +705,8 @@ const AsphericDemo = () => {
                         Crisp Edges
                       </span>
                     </div>
-
                   </div>
 
-                  {/* Horizontal Feature Badges */}
                   <div className="shrink-0 mt-3 sm:mt-4 grid grid-cols-3 gap-1 sm:gap-2">
                     <div className="bg-emerald-50 border border-emerald-100 rounded p-1 sm:p-2 flex flex-col items-center justify-center text-center">
                       <span className="text-[7px] font-black text-emerald-500 uppercase">Thickness</span>
@@ -802,6 +733,11 @@ const AsphericDemo = () => {
 };
 
 export default function App() {
+  // --- Firebase State ---
+  const [dbPricing, setDbPricing] = useState<any>(null);
+  const [isLoadingPrices, setIsLoadingPrices] = useState(true);
+
+  // --- App State ---
   const [customerName, setCustomerName] = useState('');
   const [isOwnFrame, setIsOwnFrame] = useState(false);
   const [framePrice, setFramePrice] = useState(0);
@@ -822,6 +758,20 @@ export default function App() {
           setDbPricing(docSnap.data());
         } else {
           console.error("No pricing doc found in Firebase!");
+          // Fallback default pricing so the app doesn't break if Firebase isn't set up yet
+          setDbPricing({
+            singleVision: {
+              new: { "1.5": 0, "1.6 Spherical": 45, "1.6 Aspheric": 65, "1.67": 100, "1.74": 149 },
+              own: { "1.5": 59, "1.6 Spherical": 104, "1.6 Aspheric": 124, "1.67": 159, "1.74": 208 }
+            },
+            varifocal: {
+              basic: { new: [159, 224, 254, 304], own: [179, 244, 274, 324] },
+              elite: { new: [179, 274, 304, 354], own: [199, 294, 324, 374] },
+              individual: { new: [239, 334, 354, 414], own: [259, 354, 374, 434] }
+            },
+            coatings: { marBase: 35, blueBase: 45, blueVarifocal: 20 },
+            extras: { transitions: 49, transitionsVarifocal: 69, xtractive: 65, tint: 35 }
+          });
         }
       } catch (err) {
         console.error("Error fetching prices:", err);
@@ -849,7 +799,6 @@ export default function App() {
     window.print();
   };
 
-  // Show a loading screen while prices fetch from Firebase
   if (isLoadingPrices) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
