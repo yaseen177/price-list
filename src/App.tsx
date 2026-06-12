@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase'; // <-- Ensure this points to the file you just created
 
 // --- Custom Styles for PDF Export ---
 const printStyles = `
@@ -56,34 +58,36 @@ type Coating = 'None' | 'MAR' | 'Blue Filter';
 type LightProtection = 'None' | 'Transitions' | 'XtrActive Transitions' | 'Solid Tint';
 
 // --- Pricing Logic ---
-const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean): number => {
-  if (type === 'Single Vision') {
-    const newPrices = { '1.5': 0, '1.6 Spherical': 45, '1.6 Aspheric': 65, '1.67': 100, '1.74': 149 };
-    const ownPrices = { '1.5': 59, '1.6 Spherical': 104, '1.6 Aspheric': 124, '1.67': 159, '1.74': 208 };
-    return isOwnFrame ? ownPrices[index] : newPrices[index];
-  }
-  // Varifocal base prices bumped by £40 to include MAR standard
-  const baseVarifocal = type === 'Basic Varifocal' ? { new: [159, 224, 254, 304], own: [179, 244, 274, 324] } :
-                        type === 'Elite Varifocal' ? { new: [179, 274, 304, 354], own: [199, 294, 324, 374] } :
-                        { new: [239, 334, 354, 414], own: [259, 354, 374, 434] };
+const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean, dbPricing: any): number => {
+  if (!dbPricing) return 0;
   
-  const idxMap = { '1.5': 0, '1.6 Spherical': 1, '1.6 Aspheric': 1, '1.67': 2, '1.74': 3 };
-  return isOwnFrame ? baseVarifocal.own[idxMap[index]] : baseVarifocal.new[idxMap[index]];
+  if (type === 'Single Vision') {
+    return isOwnFrame ? dbPricing.singleVision.own[index] : dbPricing.singleVision.new[index];
+  }
+  
+  const vType = type === 'Basic Varifocal' ? 'basic' : type === 'Elite Varifocal' ? 'elite' : 'individual';
+  const idxMap: any = { '1.5': 0, '1.6 Spherical': 1, '1.6 Aspheric': 1, '1.67': 2, '1.74': 3 };
+  
+  return isOwnFrame 
+    ? dbPricing.varifocal[vType].own[idxMap[index]] 
+    : dbPricing.varifocal[vType].new[idxMap[index]];
 };
 
-const getCoatingPrice = (coating: Coating, type: LensType): number => {
+const getCoatingPrice = (coating: Coating, type: LensType, dbPricing: any): number => {
+  if (!dbPricing) return 0;
   const isVarifocal = type.includes('Varifocal');
   switch (coating) {
-    case 'MAR': return isVarifocal ? 0 : 35;
-    case 'Blue Filter': return isVarifocal ? 20 : 45; // If Varifocal, MAR is standard, making Blue Filter a £20 upgrade
+    case 'MAR': return isVarifocal ? 0 : dbPricing.coatings.marBase;
+    case 'Blue Filter': return isVarifocal ? dbPricing.coatings.blueVarifocal : dbPricing.coatings.blueBase;
     default: return 0;
   }
 };
 
-const getLightProtectionPrice = (protection: LightProtection, type: LensType): number => {
-  if (protection === 'Transitions') return type === 'Single Vision' ? 49 : 69; 
-  if (protection === 'XtrActive Transitions') return 65;
-  if (protection === 'Solid Tint') return 35;
+const getLightProtectionPrice = (protection: LightProtection, type: LensType, dbPricing: any): number => {
+  if (!dbPricing) return 0;
+  if (protection === 'Transitions') return type === 'Single Vision' ? dbPricing.extras.transitions : dbPricing.extras.transitionsVarifocal; 
+  if (protection === 'XtrActive Transitions') return dbPricing.extras.xtractive;
+  if (protection === 'Solid Tint') return dbPricing.extras.tint;
   return 0;
 };
 
@@ -808,9 +812,29 @@ export default function App() {
   const [showDemo, setShowDemo] = useState(false);
   const [readingAdd, setReadingAdd] = useState(2.00);
 
-  const lensBaseCost = useMemo(() => getLensBasePrice(lensType, lensIndex, isOwnFrame), [lensType, lensIndex, isOwnFrame]);
-  const coatingCost = useMemo(() => getCoatingPrice(coating, lensType), [coating, lensType]);
-  const protectionCost = useMemo(() => getLightProtectionPrice(lightProtection, lensType), [lightProtection, lensType]);
+  // Fetch from Firebase on Load
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'pricing');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setDbPricing(docSnap.data());
+        } else {
+          console.error("No pricing doc found in Firebase!");
+        }
+      } catch (err) {
+        console.error("Error fetching prices:", err);
+      } finally {
+        setIsLoadingPrices(false);
+      }
+    };
+    fetchPrices();
+  }, []);
+
+  const lensBaseCost = useMemo(() => getLensBasePrice(lensType, lensIndex, isOwnFrame, dbPricing), [lensType, lensIndex, isOwnFrame, dbPricing]);
+  const coatingCost = useMemo(() => getCoatingPrice(coating, lensType, dbPricing), [coating, lensType, dbPricing]);
+  const protectionCost = useMemo(() => getLightProtectionPrice(lightProtection, lensType, dbPricing), [lightProtection, lensType, dbPricing]);
   const totalCost = (isOwnFrame ? 0 : (framePrice || 0)) + lensBaseCost + coatingCost + protectionCost;
 
   useEffect(() => {
@@ -824,6 +848,15 @@ export default function App() {
   const handleSaveQuote = () => {
     window.print();
   };
+
+  // Show a loading screen while prices fetch from Firebase
+  if (isLoadingPrices) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3f9185]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 md:py-10 px-2 sm:px-4 font-sans text-slate-900">
@@ -902,22 +935,28 @@ export default function App() {
                     onClick={() => setCoating('MAR')} 
                     colSpan={isVarifocal ? 3 : 1}
                   >
-                    {isVarifocal ? 'MAR (Included)' : 'MAR (+£35)'}
+                    {isVarifocal ? 'MAR (Included)' : `MAR (+£${dbPricing?.coatings?.marBase || 35})`}
                   </TableCell>
                   <TableCell 
                     isSelected={coating === 'Blue Filter'} 
                     onClick={() => setCoating('Blue Filter')} 
                     colSpan={isVarifocal ? 2 : 1}
                   >
-                    {isVarifocal ? 'Blue Filter (+£20)' : 'Blue Filter (+£45)'}
+                    {isVarifocal ? `Blue Filter (+£${dbPricing?.coatings?.blueVarifocal || 20})` : `Blue Filter (+£${dbPricing?.coatings?.blueBase || 45})`}
                   </TableCell>
                 </tr>
                 <tr>
                   <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] whitespace-nowrap">Extras</th>
                   <TableCell isSelected={lightProtection === 'None'} onClick={() => setLightProtection('None')} colSpan={2}>Clear</TableCell>
-                  <TableCell isSelected={lightProtection === 'Transitions'} onClick={() => setLightProtection('Transitions')}>Transitions (+£{lensType === 'Single Vision' ? 49 : 69})</TableCell>
-                  <TableCell isSelected={lightProtection === 'XtrActive Transitions'} onClick={() => setLightProtection('XtrActive Transitions')}>XtrActive (+£65)</TableCell>
-                  <TableCell isSelected={lightProtection === 'Solid Tint'} onClick={() => setLightProtection('Solid Tint')}>Tint (+£35)</TableCell>
+                  <TableCell isSelected={lightProtection === 'Transitions'} onClick={() => setLightProtection('Transitions')}>
+                    Transitions (+£{lensType === 'Single Vision' ? (dbPricing?.extras?.transitions || 49) : (dbPricing?.extras?.transitionsVarifocal || 69)})
+                  </TableCell>
+                  <TableCell isSelected={lightProtection === 'XtrActive Transitions'} onClick={() => setLightProtection('XtrActive Transitions')}>
+                    XtrActive (+£{dbPricing?.extras?.xtractive || 65})
+                  </TableCell>
+                  <TableCell isSelected={lightProtection === 'Solid Tint'} onClick={() => setLightProtection('Solid Tint')}>
+                    Tint (+£{dbPricing?.extras?.tint || 35})
+                  </TableCell>
                 </tr>
               </tbody>
             </table>
