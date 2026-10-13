@@ -52,7 +52,38 @@ const printStyles = `
 `;
 
 // --- Types ---
-type LensType = 'Single Vision' | 'Basic Varifocal' | 'Elite Varifocal' | 'Individual Varifocal';
+type LensType = 'Single Vision' | 'Basic Varifocal' | 'Advanced Varifocal' | 'Elite Varifocal' | 'Individual Varifocal';
+type VarifocalKey = 'basic' | 'advanced' | 'elite' | 'individual';
+
+// --- Varifocal Tiers (single source of truth for names, descriptions & visualiser corridor) ---
+const VARIFOCAL_TIERS: { key: VarifocalKey; label: string; type: LensType; desc: string; baseNear: number; nearPenalty: number }[] = [
+  { key: 'basic', label: 'Basic', type: 'Basic Varifocal', baseNear: 35, nearPenalty: 14,
+    desc: 'Entry-level varifocal lens with blurred margins and UV protection.' },
+  { key: 'advanced', label: 'Advanced', type: 'Advanced Varifocal', baseNear: 52, nearPenalty: 11,
+    desc: 'Upgraded from the Basic lens, offering improved vision and a wider, more comfortable viewing area, with UV protection.' },
+  { key: 'elite', label: 'Elite', type: 'Elite Varifocal', baseNear: 70, nearPenalty: 7,
+    desc: 'Premium varifocal lens designed for enhanced visual comfort and smoother transitions, with UV protection.' },
+  { key: 'individual', label: 'Individual', type: 'Individual Varifocal', baseNear: 90, nearPenalty: 4,
+    desc: 'Our most personalised varifocal lens, tailored to your prescription and visual requirements for maximum comfort and performance, with UV protection.' },
+];
+const UV_NOTE = 'UV protection on all lenses – recommended especially if you have cataracts.';
+
+// --- Default pricing (used if the Firebase doc is missing, and to fill any tier Firebase doesn't have yet) ---
+// Varifocal arrays are [1.5, 1.6, 1.67, 1.74]
+const DEFAULT_PRICING = {
+  singleVision: {
+    new: { "1.5": 0, "1.6 Spherical": 45, "1.6 Aspheric": 65, "1.67": 100, "1.74": 149 },
+    own: { "1.5": 59, "1.6 Spherical": 104, "1.6 Aspheric": 124, "1.67": 159, "1.74": 208 }
+  },
+  varifocal: {
+    basic:      { new: [100, 165, 195, 245], own: [120, 185, 215, 265] },
+    advanced:   { new: [179, 274, 304, 354], own: [199, 294, 324, 374] },
+    elite:      { new: [229, 324, 354, 404], own: [249, 344, 374, 424] },
+    individual: { new: [259, 354, 374, 434], own: [279, 374, 394, 454] }
+  },
+  coatings: { marBase: 35, blueBase: 45, blueVarifocal: 20 },
+  extras: { transitions: 49, transitionsVarifocal: 69, xtractive: 65, tint: 35 }
+};
 type LensIndex = '1.5' | '1.6 Spherical' | '1.6 Aspheric' | '1.67' | '1.74';
 type Coating = 'None' | 'MAR' | 'Blue Filter';
 type LightProtection = 'None' | 'Transitions' | 'XtrActive Transitions' | 'Solid Tint';
@@ -65,12 +96,12 @@ const getLensBasePrice = (type: LensType, index: LensIndex, isOwnFrame: boolean,
     return isOwnFrame ? dbPricing.singleVision.own[index] : dbPricing.singleVision.new[index];
   }
   
-  const vType = type === 'Basic Varifocal' ? 'basic' : type === 'Elite Varifocal' ? 'elite' : 'individual';
+  const vType = VARIFOCAL_TIERS.find(t => t.type === type)?.key;
+  if (!vType) return 0;
   const idxMap: any = { '1.5': 0, '1.6 Spherical': 1, '1.6 Aspheric': 1, '1.67': 2, '1.74': 3 };
+  const tierPrices = dbPricing.varifocal?.[vType] ?? DEFAULT_PRICING.varifocal[vType];
   
-  return isOwnFrame 
-    ? dbPricing.varifocal[vType].own[idxMap[index]] 
-    : dbPricing.varifocal[vType].new[idxMap[index]];
+  return (isOwnFrame ? tierPrices.own : tierPrices.new)[idxMap[index]] ?? 0;
 };
 
 const getCoatingPrice = (coating: Coating, type: LensType, dbPricing: any): number => {
@@ -105,42 +136,48 @@ const TableCell = ({ isSelected, onClick, children, colSpan = 1 }: { isSelected:
 );
 
 // --- Varifocal Simulator ---
-const VarifocalDemo = ({ readingAdd }: { readingAdd: number }) => {
+const VarifocalDemo = ({ readingAdd, selectedType }: { readingAdd: number; selectedType: LensType }) => {
   const scenarios = [
     { id: 'tv-phone', name: 'Relaxing', img: '/tv.jpg', bgPos: 'center 10%' },
     { id: 'driving', name: 'Driving', img: '/car.jpg', bgPos: 'center 10%' },
     { id: 'meeting', name: 'Board Meeting', img: '/meeting.jpg', bgPos: 'center 10%' },
   ];
   const [activeScenario, setActiveScenario] = useState(scenarios[0]);
-  const getCorridorWidths = (tier: 'Basic' | 'Elite' | 'Individual') => {
-    let baseNear = tier === 'Basic' ? 40 : tier === 'Elite' ? 65 : 90;
-    let nearPenalty = tier === 'Basic' ? 14 : tier === 'Elite' ? 9 : 4;
-    const addFactor = Math.max(0, readingAdd - 1.0); 
-    return { nearWidth: Math.max(15, baseNear - (addFactor * nearPenalty)) };
+  const getNearWidth = (baseNear: number, nearPenalty: number) => {
+    const addFactor = Math.max(0, readingAdd - 1.0);
+    return Math.max(12, baseNear - (addFactor * nearPenalty));
   };
 
   return (
     <div className="mt-4 md:mt-6 p-4 md:p-6 bg-slate-800 rounded-xl text-white shadow-inner">
       <h3 className="text-base md:text-lg font-bold mb-2">Live Varifocal Visualiser</h3>
+      <p className="text-slate-400 text-xs md:text-sm mb-4">Frosted areas show the blurred side zones. The clear area is your usable reading zone – wider is better.</p>
       <div className="flex flex-wrap gap-2 mb-6 justify-center md:justify-start">
         {scenarios.map(s => (
           <button key={s.id} onClick={() => setActiveScenario(s)} className={`px-3 md:px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all flex-1 md:flex-none whitespace-nowrap ${activeScenario.id === s.id ? 'bg-[#3f9185] text-white' : 'bg-slate-700 text-slate-300'}`}>{s.name}</button>
         ))}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {(['Basic', 'Elite', 'Individual'] as const).map((tier) => {
-          const { nearWidth } = getCorridorWidths(tier);
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+        {VARIFOCAL_TIERS.map((tier) => {
+          const nearWidth = getNearWidth(tier.baseNear, tier.nearPenalty);
+          const isSelected = tier.type === selectedType;
           return (
-            <div key={tier} className="flex flex-col items-center">
-              <h4 className="font-semibold text-[#3f9185] bg-white px-3 py-1 rounded-full text-xs md:text-sm mb-3 shadow">{tier}</h4>
-              <div className="relative w-full h-48 sm:h-64 bg-slate-200 rounded-t-[40%] rounded-b-[40%] overflow-hidden border-4 border-slate-600 shadow-lg" style={{ backgroundImage: `url('${activeScenario.img}')`, backgroundSize: 'cover', backgroundPosition: activeScenario.bgPos }}>
-                <div className="absolute bottom-0 left-0 bg-white/30 backdrop-blur-md z-10" style={{ height: '60%', width: `calc(50% - ${nearWidth/2}%)`, borderTopRightRadius: '100% 100%' }} />
-                <div className="absolute bottom-0 right-0 bg-white/30 backdrop-blur-md z-10" style={{ height: '60%', width: `calc(50% - ${nearWidth/2}%)`, borderTopLeftRadius: '100% 100%' }} />
+            <div key={tier.key} className={`flex flex-col items-center p-2 rounded-xl transition-all ${isSelected ? 'bg-[#3f9185]/20 ring-2 ring-[#3f9185]' : ''}`}>
+              <h4 className={`font-semibold px-3 py-1 rounded-full text-xs md:text-sm mb-3 shadow ${isSelected ? 'bg-[#3f9185] text-white' : 'bg-white text-[#3f9185]'}`}>{tier.label}</h4>
+              <div className="relative w-full h-44 sm:h-52 bg-slate-200 rounded-t-[40%] rounded-b-[40%] overflow-hidden border-4 border-slate-600 shadow-lg" style={{ backgroundImage: `url('${activeScenario.img}')`, backgroundSize: 'cover', backgroundPosition: activeScenario.bgPos }}>
+                <div className="absolute bottom-0 left-0 bg-white/30 backdrop-blur-md z-10 transition-all duration-300" style={{ height: '60%', width: `calc(50% - ${nearWidth/2}%)`, borderTopRightRadius: '100% 100%' }} />
+                <div className="absolute bottom-0 right-0 bg-white/30 backdrop-blur-md z-10 transition-all duration-300" style={{ height: '60%', width: `calc(50% - ${nearWidth/2}%)`, borderTopLeftRadius: '100% 100%' }} />
               </div>
+              <div className="w-full mt-3">
+                <div className="flex justify-between text-[9px] uppercase tracking-widest text-slate-400 mb-1"><span>Reading zone</span><span>{Math.round(nearWidth)}%</span></div>
+                <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-[#3f9185] transition-all duration-300" style={{ width: `${nearWidth}%` }} /></div>
+              </div>
+              <p className="text-[11px] md:text-xs text-slate-300 mt-3 text-center leading-snug">{tier.desc}</p>
             </div>
           );
         })}
       </div>
+      <p className="text-[11px] md:text-xs text-slate-400 mt-5 text-center">☀️ {UV_NOTE}</p>
     </div>
   );
 };
@@ -755,26 +792,17 @@ export default function App() {
         const docRef = doc(db, 'settings', 'pricing');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setDbPricing(docSnap.data());
+          const data: any = docSnap.data();
+          // Fill in any varifocal tier Firebase doesn't have yet (e.g. 'advanced') so nothing breaks
+          setDbPricing({ ...data, varifocal: { ...DEFAULT_PRICING.varifocal, ...(data.varifocal || {}) } });
         } else {
           console.error("No pricing doc found in Firebase!");
           // Fallback default pricing so the app doesn't break if Firebase isn't set up yet
-          setDbPricing({
-            singleVision: {
-              new: { "1.5": 0, "1.6 Spherical": 45, "1.6 Aspheric": 65, "1.67": 100, "1.74": 149 },
-              own: { "1.5": 59, "1.6 Spherical": 104, "1.6 Aspheric": 124, "1.67": 159, "1.74": 208 }
-            },
-            varifocal: {
-              basic: { new: [159, 224, 254, 304], own: [179, 244, 274, 324] },
-              elite: { new: [179, 274, 304, 354], own: [199, 294, 324, 374] },
-              individual: { new: [239, 334, 354, 414], own: [259, 354, 374, 434] }
-            },
-            coatings: { marBase: 35, blueBase: 45, blueVarifocal: 20 },
-            extras: { transitions: 49, transitionsVarifocal: 69, xtractive: 65, tint: 35 }
-          });
+          setDbPricing(DEFAULT_PRICING);
         }
       } catch (err) {
         console.error("Error fetching prices:", err);
+        setDbPricing(DEFAULT_PRICING);
       } finally {
         setIsLoadingPrices(false);
       }
@@ -794,6 +822,7 @@ export default function App() {
   }, [lensType, coating]);
 
   const isVarifocal = lensType.includes('Varifocal');
+  const selectedTier = VARIFOCAL_TIERS.find(t => t.type === lensType);
 
   const handleSaveQuote = () => {
     window.print();
@@ -839,10 +868,12 @@ export default function App() {
               <tbody>
                 <tr className="border-b-2 border-gray-100">
                   <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 w-1/5 tracking-[0.2em] whitespace-nowrap">Lens Type</th>
-                  <TableCell isSelected={lensType === 'Single Vision'} onClick={() => { setLensType('Single Vision'); setShowDemo(false); }} colSpan={2}>Single Vision</TableCell>
-                  <TableCell isSelected={lensType === 'Basic Varifocal'} onClick={() => setLensType('Basic Varifocal')}>Basic Varifocal</TableCell>
-                  <TableCell isSelected={lensType === 'Elite Varifocal'} onClick={() => setLensType('Elite Varifocal')}>Elite Varifocal</TableCell>
-                  <TableCell isSelected={lensType === 'Individual Varifocal'} onClick={() => setLensType('Individual Varifocal')}>Individual Varifocal</TableCell>
+                  <TableCell isSelected={lensType === 'Single Vision'} onClick={() => { setLensType('Single Vision'); setShowDemo(false); }}>Single Vision</TableCell>
+                  {VARIFOCAL_TIERS.map(tier => (
+                    <TableCell key={tier.key} isSelected={lensType === tier.type} onClick={() => setLensType(tier.type)}>
+                      {tier.label}<br/><span className="text-[8px] md:text-[9px] uppercase opacity-50 font-bold">Varifocal · from £{dbPricing?.varifocal?.[tier.key]?.new?.[0] ?? DEFAULT_PRICING.varifocal[tier.key].new[0]}</span>
+                    </TableCell>
+                  ))}
                 </tr>
                 <tr className="border-b-2 border-gray-100">
                   <th className="p-3 md:p-4 bg-gray-50 text-left text-[9px] md:text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] whitespace-nowrap align-middle">Index</th>
@@ -911,6 +942,14 @@ export default function App() {
             </table>
           </div>
 
+          {isVarifocal && selectedTier && (
+            <div className="rounded-2xl border-2 border-[#3f9185]/30 bg-[#3f9185]/5 p-4 md:p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3f9185] mb-1">{selectedTier.label} Varifocal</p>
+              <p className="text-sm md:text-base text-slate-700 font-medium">{selectedTier.desc}</p>
+              <p className="text-xs text-slate-500 mt-2">☀️ {UV_NOTE}</p>
+            </div>
+          )}
+
           <LensThicknessVisualiser />
           <AsphericDemo />
 
@@ -927,7 +966,7 @@ export default function App() {
                 <div className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-slate-800">
                   <label className="block text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-500 mb-3 md:mb-4">Reading Addition: <span className="text-[#3f9185] text-lg md:text-xl ml-2">+{readingAdd.toFixed(2)}</span></label>
                   <input type="range" min="1.00" max="3.50" step="0.25" value={readingAdd} onChange={(e) => setReadingAdd(parseFloat(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none accent-[#3f9185] mb-6 md:mb-8" />
-                  <VarifocalDemo readingAdd={readingAdd} />
+                  <VarifocalDemo readingAdd={readingAdd} selectedType={lensType} />
                 </div>
               )}
             </div>
@@ -1001,6 +1040,7 @@ export default function App() {
             <span>Index {lensIndex.replace('Spherical', '(Thin)').replace('Aspheric', '(Thin & Flat)')} Material</span><span className="text-right text-white">Incl.</span>
             {coating !== 'None' && <><span>{coating} Coating</span><span className="text-right text-white">{coatingCost > 0 ? `£${coatingCost}` : 'Incl.'}</span></>}
             {protectionCost > 0 && <><span>Extra: {lightProtection}</span><span className="text-right text-white">£{protectionCost}</span></>}
+            <span>UV Protection</span><span className="text-right text-white">Incl.</span>
           </div>
           <div className="mt-6 sm:mt-10 pt-6 sm:pt-8 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <span className="text-xl md:text-2xl font-black uppercase tracking-tighter">Grand Total</span>
